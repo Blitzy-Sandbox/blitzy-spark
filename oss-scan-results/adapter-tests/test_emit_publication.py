@@ -32,7 +32,7 @@ What is asserted, and where
 10. a disagreeing pair publishes neither .......... :class:`AtomicPublicationTests`
 11. the neutralisation is exactly reversible ...... :class:`CsvNeutralisationTests`
 12. the schema survives it unchanged ............. :class:`CsvNeutralisationTests`
-13. the real 9,430-row dataset round-trips ....... :class:`CommittedDatasetTests`
+13. the real 9,427-row dataset round-trips ....... :class:`CommittedDatasetTests`
 14. the run record is published under the same protocol :class:`RunRecordPublicationTests`
 15. every named file the record carries is measured :class:`RunRecordMeasurementTests`
 16. every published file is 0o644, verified after promotion :class:`PublishedFileModeTests`
@@ -140,7 +140,7 @@ FINDINGS_CSV = REPO_ROOT / "oss-scan-results" / "findings.csv"
 
 #: The row count AAP-side reconciliation established for the committed dataset. Asserted
 #: rather than derived, so a dataset that silently changed size is caught here too.
-COMMITTED_ROW_COUNT = 9430
+COMMITTED_ROW_COUNT = 9427
 
 
 def build_row(**overrides: Any) -> dict[str, Any]:
@@ -1448,7 +1448,7 @@ class CommittedDatasetTests(unittest.TestCase):
     """The real dataset, read and re-rendered — the proof the change costs nothing (F55).
 
     The adversarial corpus above proves the rule works. This class proves the rule leaves
-    the committed deliverable exactly as it is: no cell in the 9,430 committed rows begins
+    the committed deliverable exactly as it is: no cell in the 9,427 committed rows begins
     with a trigger, so re-rendering them produces the same bytes, and the CSV that was
     written before the rule existed still round-trips under the reader that now reverses
     it. Nothing here writes to the deliverables.
@@ -1472,7 +1472,7 @@ class CommittedDatasetTests(unittest.TestCase):
         self.assertEqual(self.json_rows, self.csv_rows)
 
     def test_the_committed_dataset_carries_the_recorded_row_count(self) -> None:
-        """9,430 rows, counted by parsing rather than by counting lines."""
+        """9,427 rows, counted by parsing rather than by counting lines."""
         self.assertEqual(len(self.json_rows), COMMITTED_ROW_COUNT)
         self.assertEqual(len(self.csv_rows), COMMITTED_ROW_COUNT)
         physical_lines = len(FINDINGS_CSV.read_text(encoding="utf-8").splitlines())

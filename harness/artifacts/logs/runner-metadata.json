@@ -301,7 +301,7 @@
       "status_now": "resolved",
       "measured": "AT THE GATE'S INSTANT: Record: 541,255,894 bytes / sha256 26d327cc...fcffc / 1,397,339 methods. Disk: 541,309,809 bytes / sha256 4616845a...4730c7 / 1,396,899 methods measured by this run's own importCpg load.",
       "authority": "harness/artifacts/logs/gate-record.json, check gate.environment_record_graph_identity_agreement",
-      "disposition": "Reported by the gate and not repaired by it. CORRECTED afterwards, on 2026-09-02: the disagreement was the environment record being stale, not the graph being wrong, and the graph's own write-time record of account carries a supersession block naming both values - so an anchor to adjudicate between them does exist, and AAP 0.1.3's fourth case (record contradicted with no anchor) does not apply. harness/ENVIRONMENT.md section 7 and its inline-values Graph block were re-anchored to the write-time owner /opt/blitzy-harness/provision-log/cpg-record.txt, both values retained with provenance in that document's supersession appendix, and the record, the filesystem and the write-time owner now agree on every field. The gate's own reading above is left exactly as measured and is not rewritten; see gate.environment_record_graph_identity_agreement.resolution in the owner for the full account. The other entry in this array remains live."
+      "disposition": "Reported by the gate and not repaired by it. CORRECTED afterwards, on 2026-09-02: the disagreement was the environment record being stale, not the graph being wrong, and the graph's own write-time record of account carries a supersession block naming both values - so an anchor to adjudicate between them does exist, and AAP 0.1.3's fourth case (record contradicted with no anchor) does not apply. harness/ENVIRONMENT.md section 7 and its inline-values Graph block were re-anchored to the write-time owner /opt/blitzy-harness/provision-log/cpg-record.txt, both values retained with provenance in that document's supersession appendix, and the record, the filesystem and the write-time owner now agree on every field. The gate's own reading above is left exactly as measured and is not rewritten; see gate.environment_record_graph_identity_agreement.resolution in the owner for the full account. The other entry in this array remains live. AND CORRECTED A SECOND TIME, on 2026-09-03, because the host was re-provisioned at 2026-09-03T01:17:07Z and the graph was rebuilt again: the write-time owner and the graph on disk now state 547,980,224 / 325887cf...3dc6, section 7 and the inline Graph block were re-anchored to that pair, the 2026-09-01 pair joined the earlier one as labelled history in appendix S.5, and Stage 3 was re-run against the current graph (tools.joern.stage3_invocation_2026_09_03). status_now 'resolved' rests on that second correction rather than on the first, which the re-provisioning had itself superseded; the verdict is checkable today - harness/lib/preflight_graph_identity.py --check-only exits 0 VERDICT: PASS on this tree."
     }
   ],
   "halts_note": "Two conditions AAP 0.9.2 lists among those that stop the run were observed by the gate, both inherited. ONE is still live: both artifact trees exist and are non-empty, which this run neither created nor cleared. The other - the environment record disagreeing with the graph on disk - was corrected on 2026-09-02 and carries status_now resolved with its account in its disposition. This document records what each runner is and what this generation measured; it does not claim that any stage was authorised, and the one live condition means the overall gate verdict stands at halt.",
@@ -2320,24 +2320,24 @@
         "path": "harness/cpg/spark.cpg",
         "resolves_to": "/opt/blitzy-harness/cpg/spark.cpg",
         "relationship": "harness/cpg/spark.cpg is a 33-byte symlink to the shared graph, so both the AAP's named path and the environment's exported name resolve to the same bytes.",
-        "observed_bytes": 541309809,
-        "observed_sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
-        "identity_source": "Byte size measured with stat over the resolved path (stat -Lc '%s' harness/cpg/spark.cpg prints 541309809) and the sha256 recomputed over those same bytes (sha256sum \"$(readlink -f harness/cpg/spark.cpg)\" prints 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7). The pair's record of account is harness/artifacts/logs/cpg-identity.txt, which states 'bytes: 541309809' and 'sha256: 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7' and resolves them from /opt/blitzy-harness/provision-log/cpg-identity.txt, the record written beside the graph at write time. It is not derived from harness/ENVIRONMENT.md, which is a provisioning record rather than the pair's owner - though as of 2026-09-02 that document agrees with it: its section 7 and its inline-values Graph block were re-anchored to the write-time owner and now state 541,309,809 bytes and sha256 4616845a...4730c7, having previously carried 541,255,894 bytes and sha256 26d327cc...fcffc for the superseded graph, whose provisioning date superseded_record_divergence below records in its own labelled field rather than here. The runner recomputes and prints both at lines 112-113 before every load, and this generation's own harness/artifacts/logs/joern.runner-console.log lines 14-15 carry that print: 'cpg bytes       : 541309809' and 'cpg sha256      : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7'.",
-        "runner_guard": "Lines 99-103 exit 78 naming the missing graph if HARNESS_CPG does not exist or does not resolve to a file - a configuration fault to fix, not a scanning outcome to classify. Since 2026-09-02 that existence guard is followed by an identity gate: line 139 runs harness/lib/preflight_graph_identity.py --check-only over the resolved path and lines 142-144 exit 78 on a non-zero gate status, so the runner refuses a graph whose bytes or digest differ from the recorded pair before it invokes joern at all rather than printing the pair and proceeding.",
+        "observed_bytes": 547980224,
+        "observed_sha256": "325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6",
+        "identity_source": "Byte size measured with stat over the resolved path (stat -Lc '%s' harness/cpg/spark.cpg prints 547980224) and the sha256 recomputed over those same bytes (sha256sum \"$(readlink -f harness/cpg/spark.cpg)\" prints 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6). The pair's record of account is harness/artifacts/logs/cpg-identity.txt, which states 'bytes: 547980224' and 'sha256: 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6' and resolves them from /opt/blitzy-harness/provision-log/cpg-identity.txt, the record written beside the graph at write time. It is not derived from harness/ENVIRONMENT.md, which is a provisioning record rather than the pair's owner - though since the 2026-09-03 re-anchor that document agrees with it: its section 7 and its inline-values Graph block state 547,980,224 bytes and sha256 325887cf...3dc6, and the two pairs they carried before that (541,309,809 / 4616845a...4730c7, and 541,255,894 / 26d327cc...fcffc before it) are retained as labelled history in that file's supersession appendix S.2/S.5. WHICH GENERATION IS WHICH, because this is the field most easily read as one measurement when it describes three: 547,980,224 / 325887cf...3dc6 is the graph on disk and the graph the Stage 3 invocation of record read, recorded at tools.joern.stage3_invocation_2026_09_03; the 2026-09-01T14:25:10Z invocation recorded under this_generation read 541,309,809 / 4616845a...4730c7, and its own console print says so - harness/artifacts/logs/joern.runner-console.log lines 14-15 read 'cpg bytes       : 541309809' and 'cpg sha256      : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7'. The restored provisioned runner recomputes and prints the pair at lines 57-58 of harness/bin/run-joern.sh before every load, having asserted at lines 44-48 that the path resolves to a file at all.",
+        "runner_guard": "Lines 44-48 exit 78 naming the missing graph if HARNESS_CPG does not exist or does not resolve to a file - a configuration fault to fix, not a scanning outcome to classify - and lines 56-58 then print the resolved path, its byte size and its sha256. That is the whole of what the restored provisioned runner does with the identity: it prints the pair and does not compare it. The 2026-09-02 edit that put an identity gate inside the runner was reverted on 2026-09-03 as a prohibited runner edit (runner_script_identity.edited_after_this_generation.reverted_on_2026_09_03), so the comparison against the records of account is made by a run-owned gate immediately before the invocation instead: harness/lib/preflight_graph_identity.py, whose published log harness/artifacts/logs/joern-preflight.log records 'Checked at (UTC)        : 2026-09-03T09:07:46Z' at its line 36 and 'VERDICT: PASS' at its line 96, one second before the invocation of record started at 09:07:47Z. The residual on an unguarded direct invocation is named in that same reverted_on_2026_09_03 node rather than left implicit.",
         "observed_measured_by": "this run, with the symlink followed, immediately before the Joern runner loaded the graph; the same pair harness/artifacts/logs/cpg-identity.txt states and the same pair this entry's graph_identity_before_load and graph_identity_after_load blocks record",
         "superseded_record_divergence": {
           "what_the_environment_record_states": {
             "bytes": 541255894,
             "sha256": "26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc",
-            "source": "harness/ENVIRONMENT.md, written by the provisioning of 2026-08-24"
+            "source": "harness/ENVIRONMENT.md as the gate read it, written by the provisioning of 2026-08-24. That record has since been re-anchored twice - on 2026-09-02 to 541,309,809 / 4616845a...4730c7 and on 2026-09-03 to the pair below - so this is what it stated at the gate's instant and not what it states now; both superseded pairs are retained as labelled history in its appendix S.2 and S.5."
           },
           "what_is_on_disk": {
-            "bytes": 541309809,
-            "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
-            "source": "/opt/blitzy-harness/cpg/spark.cpg, written by the provisioning of 2026-08-30T19:18:37Z"
+            "bytes": 547980224,
+            "sha256": "325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6",
+            "source": "/opt/blitzy-harness/cpg/spark.cpg. WHICH PROVISIONING WROTE THIS PAIR: the re-provisioning of 2026-09-03T01:17:07Z, whose frontend write window closed at 02:11:54Z and whose write-time record is /opt/blitzy-harness/provision-log/cpg-identity.txt. The 2026-08-30T19:18:37Z provisioning wrote a different graph - 541,309,809 / 4616845a...4730c7 - and that is the pair the 2026-09-01 invocation under this_generation read, so the two must not be collapsed into one measurement."
           },
           "why_both_are_recorded": "The host was re-provisioned on 2026-08-30 while the environment record still described the graph the earlier provisioning built. That graph is not on disk. The pair the runner actually read is the observed pair above; the superseded pair is retained here so the difference is visible rather than silently overwritten. Neither value is anchored by the AAP expected-values table, and gate-record.json recorded the disagreement as a halt at its own instant.",
-          "resolution": "CORRECTED 2026-09-02. The disagreement was the environment record being stale, not the graph being wrong: /opt/blitzy-harness/provision-log/cpg-record.txt, written beside the graph at 2026-08-30T19:33:42Z, carries its own 'Expected vs observed (prior provisioning record)' block naming both pairs and both method and type-declaration counts, so an anchor to adjudicate between them exists and AAP 0.1.3's fourth case does not apply. harness/ENVIRONMENT.md was re-anchored to that owner, and both pairs are retained there with their provenance in a supersession appendix. Record, filesystem and write-time owner now agree on bytes, sha256, method count, type-declaration count, file count, heap and peak RSS. This divergence entry is kept because it is the account of what was superseded and why; it is no longer a live disagreement.",
+          "resolution": "CORRECTED TWICE, and both corrections are the same act performed against two different graphs. First on 2026-09-02: the disagreement was the environment record being stale rather than the graph being wrong, because /opt/blitzy-harness/provision-log/cpg-record.txt, written beside the graph, carries its own 'Expected vs observed (prior provisioning record)' block naming both pairs and both method and type-declaration counts, so an anchor to adjudicate between them existed and AAP 0.1.3's fourth case did not apply; harness/ENVIRONMENT.md was re-anchored to that owner at 541,309,809 / 4616845a...4730c7. Then again on 2026-09-03, after the host was re-provisioned a third time: the same owner files now state 547,980,224 / 325887cf...3dc6, section 7 and the inline Graph block were re-anchored to them, and Stage 3 was re-run against that graph (tools.joern.stage3_invocation_2026_09_03) so the dataset's joern rows come from bytes this checkout can point at. Record, filesystem and write-time owner agree on bytes, sha256, method count, type-declaration count, file count, heap and peak RSS. This divergence entry is the account of what was superseded and why; it is not a live disagreement, and harness/lib/preflight_graph_identity.py --check-only exits 0 VERDICT: PASS on the current tree.",
           "note": "Retained as a labelled divergence rather than as the observed value, so no reader meets two competing pairs in one file. Since the correction it is a historical account rather than an open difference."
         }
       },
@@ -2345,9 +2345,9 @@
         "target_passing_style": "no filesystem target; a script plus the graph path passed through the environment",
         "invocations_per_run": 1,
         "literal": "JAVA_HOME=\"$JAVA_HOME_21\" SL_LOGGING_LEVEL=\"${SL_LOGGING_LEVEL:-WARN}\" JAVA_TOOL_OPTIONS=\"$CHILD_JAVA_TOOL_OPTIONS\" HARNESS_SCAN_CPG=\"$CPG_REAL\" HARNESS_SCAN_OUT=\"$ART\" HARNESS_SCAN_BOUND=\"$BOUND\" HARNESS_SCAN_HEAP_FLOOR_BYTES=\"$HEAP_FLOOR_BYTES\" HARNESS_SCAN_HEAP_RECORD=\"$HEAP_RECORD\" joern --script \"$SCRIPT\" -J-Xmx\"$HARNESS_JOERN_HEAP\" < /dev/null > \"$OUT\" 2> \"$ERR\"",
-        "source_lines": "harness/bin/run-joern.sh lines 151-158",
+        "source_lines": "harness/bin/run-joern.sh lines 67-71",
         "literal_change_2026_09_02": "JAVA_TOOL_OPTIONS, HARNESS_SCAN_HEAP_FLOOR_BYTES and HARNESS_SCAN_HEAP_RECORD were added on 2026-09-02. CHILD_JAVA_TOOL_OPTIONS is the caller's JAVA_TOOL_OPTIONS with -Xmx\"$HARNESS_JOERN_HEAP\" appended LAST, and the last -Xmx in that string is the one the JVM applies - so the child JVM that runs importCpg and the queries now inherits the harness heap, which -J-Xmx alone never reached, while a caller can still raise the heap through HARNESS_JOERN_HEAP and cannot lower it below the floor. See heap_override for the mechanism and the measurement.",
-        "targets": "None on the command line. The graph is passed as HARNESS_SCAN_CPG, the artifact path as HARNESS_SCAN_OUT and the per-query traversal bound as HARNESS_SCAN_BOUND, because Joern's launcher does not forward -D system properties to a script - only -J flags reach the JVM. The script honours -D names as a fallback (harness/lib/joern-scan.sc lines 36-43).",
+        "targets": "None on the command line. The graph is passed as HARNESS_SCAN_CPG, the artifact path as HARNESS_SCAN_OUT and the per-query traversal bound as HARNESS_SCAN_BOUND, because Joern's launcher does not forward -D system properties to a script - only -J flags reach the JVM. The script honours -D names as a fallback (harness/lib/joern-scan.sc lines 20-27).",
         "stdin": "closed (< /dev/null), because the REPL blocks on an open stdin."
       },
       "working_directory": {
@@ -2362,13 +2362,13 @@
         "kind": "bytecode_class",
         "value": null,
         "value_evidence": "No filesystem base exists for this tool's records, so no value is given rather than a plausible one being invented.",
-        "evidence": "Established from the runner and its baked script rather than from any artifact. harness/lib/joern-scan.sc line 218 sets the emitted file field to m.filename - the CPG method's own filename - and line 217 sets the class field to m.typeDecl.fullName. Because this runner's input is a graph the frontend built over staged JARs rather than over the source tree, m.filename is by construction the frontend's extraction path for a .class member and can never be a path in the Spark tree, so no filesystem base exists for this tool and the class field is the only resolvable coordinate. Corroborated afterwards, not established, by harness/ENVIRONMENT.md section 9, which measured the file field to be an ephemeral /tmp/jimple2cpg-<id>/<pkg>/<Class>.class path for 692 of 692 findings. The path must therefore be resolved from the class field, against src/main and src/test under the pinned root, taking the resolution only where it is unique and rejecting the ambiguous and the unresolvable.",
+        "evidence": "Established from the runner and its baked script rather than from any artifact. harness/lib/joern-scan.sc line 97 sets the emitted file field to m.filename - the CPG method's own filename - and line 96 sets the class field to m.typeDecl.fullName. Because this runner's input is a graph the frontend built over staged JARs rather than over the source tree, m.filename is by construction the frontend's extraction path for a .class member and can never be a path in the Spark tree, so no filesystem base exists for this tool and the class field is the only resolvable coordinate. Corroborated afterwards, not established, by harness/ENVIRONMENT.md section 9, which measured the file field to be an ephemeral /tmp/jimple2cpg-<id>/<pkg>/<Class>.class path for 692 of 692 findings. The path must therefore be resolved from the class field, against src/main and src/test under the pinned root, taking the resolution only where it is unique and rejecting the ambiguous and the unresolvable.",
         "record_path_field": "class",
         "record_path_field_to_ignore": "file",
         "resolution_note": "PROVISIONING'S MEASUREMENT, over its own 692 findings and not over this run's: 89 resolve uniquely to a src/main source file, 0 are ambiguous, 0 land in src/test, 18 are org.apache.spark classes whose source filename does not match the class name because Scala permits that, and 585 are third-party classes shaded into Spark's JARs with no source in the tree at all. THIS GENERATION'S FIGURE is owned by harness/artifacts/logs/normalize-run.json, which reports 693 raw joern records - the count harness/artifacts/raw/joern.json's findings array holds - resolving to 107 emitted rows against 586 records rejected under unresolvable_path, parse status partial. That is one measurement cited once here and not re-derived: the breakdown of the 107 is the normalizer's to state, not this document's. A finding that resolves into a src/test tree is retained with in_scope false rather than dropped."
       },
       "jdk_major": 21,
-      "jdk_major_evidence": "Two independent readings agree. The runner sets JAVA_HOME=\"$JAVA_HOME_21\" at line 151 and asserts that JDK is usable at line 64; and /opt/blitzy-tools/bin/joern is itself a provisioning wrapper whose body exports JAVA_HOME=\"${JAVA_HOME_21:-/opt/blitzy-tools/jdk/jdk-21.0.12.1+1}\" before delegating to /opt/blitzy-tools/joern-cli/joern, because Joern's own launchers would otherwise use whatever java is on PATH - which here is 17. That JDK reports 'openjdk version \"21.0.12.1\" 2026-08-18 LTS' - major 21, the version the pinned release documents as its tested requirement.",
+      "jdk_major_evidence": "Two independent readings agree. The runner sets JAVA_HOME=\"$JAVA_HOME_21\" at line 67 and asserts that JDK is usable at line 40; and /opt/blitzy-tools/bin/joern is itself a provisioning wrapper whose body exports JAVA_HOME=\"${JAVA_HOME_21:-/opt/blitzy-tools/jdk/jdk-21.0.12.1+1}\" before delegating to /opt/blitzy-tools/joern-cli/joern, because Joern's own launchers would otherwise use whatever java is on PATH - which here is 17. That JDK reports 'openjdk version \"21.0.12.1\" 2026-08-18 LTS' - major 21, the version the pinned release documents as its tested requirement.",
       "jdk_home": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1",
       "interpreter": null,
       "interpreter_evidence": "Not a Python-hosted tool. It is a JVM application driven by a Scala script, and the runner invokes no interpreter.",
@@ -2385,7 +2385,7 @@
           "HARNESS_SCAN_OUT=$ART",
           "HARNESS_SCAN_BOUND=$BOUND"
         ],
-        "source_lines": "harness/bin/run-joern.sh lines 151-158",
+        "source_lines": "harness/bin/run-joern.sh lines 67-71",
         "update_suppression_flags": [],
         "notes": [
           "SL_LOGGING_LEVEL=WARN is load-bearing: Joern's default log level floods its own artifact, and one earlier run produced a 379 MB artifact of per-method INFO lines. The raw console stream goes to the log directory and only the counted query output becomes the artifact.",
@@ -2395,13 +2395,13 @@
         "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
       },
       "credential_expression": null,
-      "credential_expression_evidence": "This runner reports no credential state: it calls scope_cred_state nowhere and prints no credential line, because joern reads no credential. Recorded as null rather than an empty string. Its header lines 111-125 print the graph path and its resolution, the graph's byte size and sha256, the JDK, the parent and child heaps with the floor, the query set with its bound, and the workspace instead.",
+      "credential_expression_evidence": "This runner reports no credential state: it calls scope_cred_state nowhere and prints no credential line, because joern reads no credential. Recorded as null rather than an empty string. Its header lines 56-62 print the graph path and its resolution, the graph's byte size and sha256, the JDK, the heap it was given, the query set with its bound, and the workspace instead. NOTE 2026-09-03: the parent/child heap lines and the floor line named here were added by the 2026-09-02 runner edit and REMOVED when that edit was reverted as prohibited (AAP 0.6.1, 0.8.1); the provisioned runner prints one 'heap' line, and the child JVM's actual heap was measured externally by jcmd rather than printed by the runner.",
       "artifact_path": "joern.json",
       "artifact_absolute_form": "$HARNESS_RAW_DIR/joern.json",
       "artifact_format": "native JSON with a findings array",
       "artifact_expected": true,
       "artifact_assignment_source_line": 53,
-      "artifact_assembly": "The baked script writes the artifact itself (harness/lib/joern-scan.sc lines 227-242). Each finding carries query_id, severity, message, callee, class, method, file and line; the envelope also carries the tool version, the cpg path, the graph's method, type-declaration and file counts, and a per-query record with its bound, returned count and bound_reached flag.",
+      "artifact_assembly": "The baked script writes the artifact itself (harness/lib/joern-scan.sc lines 106-122). Each finding carries query_id, severity, message, callee, class, method, file and line; the envelope also carries the tool version, the cpg path, the graph's method, type-declaration and file counts, and a per-query record with its bound, returned count and bound_reached flag.",
       "side_artifacts": {
         "streams": [
           {
@@ -2427,14 +2427,23 @@
         },
         "tree": "none — this runner writes no side-artifact tree",
         "measurement": "measured from the filesystem immediately after the invocation returned, by byte size and sha256; no absence is claimed that the filesystem does not show",
-        "two_members_the_corrected_runner_adds_and_why_they_are_not_published_here": {
-         "members": [
-          "$HARNESS_LOG_DIR/joern.preload-identity.log — the full report of the pre-load identity gate the runner now runs itself, teed there and to its console before it invokes joern",
-          "$HARNESS_LOG_DIR/joern.child-jvm.json — the heap the child JVM measured of itself before importCpg: heap_max_bytes, heap_floor_bytes, at_or_above_floor, jvm_memory_stack_args, jdk_major and vm_version"
-         ],
-         "added": "2026-09-02, with the pre-load gate and the child-JVM heap floor",
-         "why_no_entry_in_the_published_logs_tree": "NEITHER FILE IS IN harness/artifacts/logs/ AND NEITHER IS CLAIMED TO BE. The invocation of record, on 2026-09-01, ran the runner as it then stood and wrote no such member; the only invocations that have produced them are the 2026-09-02 verification runs, which were deliberately given a redirected HARNESS_LOG_DIR inside private scratch so that no canonical artifact, stream or status file could be overwritten. Adding entries for them to harness/artifacts/MANIFEST.json or to run-record.md section 16 would publish evidence this checkout does not hold, so they are named here as a property of the corrected runner rather than as delivered files. A future canonical invocation will write both into the log tree, where the manifest will then measure them like any other member.",
-         "consequence_for_the_seven_line_status_trailer": "None. Both are separate files, which is why they were chosen: scope_finish writes exactly seven key=value lines and no field was added to it, so every .status file in this generation keeps the shape every consumer and every citation of it depends on."
+        "two_members_a_2026_09_02_runner_edit_would_have_added_withdrawn_on_2026_09_03": {
+          "status": "WITHDRAWN. Neither file can be produced by anything on disk, because the runner edit that would have written them was reverted on 2026-09-03.",
+          "members_it_named": [
+            "$HARNESS_LOG_DIR/joern.preload-identity.log — the full report of the pre-load identity gate the runner now runs itself, teed there and to its console before it invokes joern",
+            "$HARNESS_LOG_DIR/joern.child-jvm.json — the heap the child JVM measured of itself before importCpg: heap_max_bytes, heap_floor_bytes, at_or_above_floor, jvm_memory_stack_args, jdk_major and vm_version"
+          ],
+          "why_withdrawn": "The two members were properties of a 2026-09-02 edit to harness/bin/run-joern.sh and harness/lib/joern-scan.sc. AAP 0.6.1 lists every entry in harness/bin/ as REFERENCE and AAP 0.8.1 states that no runner file is edited, so the edit was reverted to the provisioned bytes (3,380 / 32dd647a... and 5,401 / cf7a3622...). The restored runner writes exactly the three members it always wrote: the artifact, the stdout stream and the stderr stream, plus the seven-line .status trailer from scope_finish.",
+          "what_replaced_the_evidence_they_would_have_carried": "Both facts are still measured, outside the runner, and both are published: the pre-load identity comparison by harness/lib/preflight_graph_identity.py, whose PASS report for this generation is at harness/artifacts/logs/joern-preflight.log; and the child JVM's own heap by an external jcmd sampler, recorded under stage3_invocation_2026_09_03 below. So no evidence was lost in the revert - it moved to files this checkout actually holds.",
+          "retained_original_text": {
+            "members": [
+              "$HARNESS_LOG_DIR/joern.preload-identity.log — the full report of the pre-load identity gate the runner now runs itself, teed there and to its console before it invokes joern",
+              "$HARNESS_LOG_DIR/joern.child-jvm.json — the heap the child JVM measured of itself before importCpg: heap_max_bytes, heap_floor_bytes, at_or_above_floor, jvm_memory_stack_args, jdk_major and vm_version"
+            ],
+            "added": "2026-09-02, with the pre-load gate and the child-JVM heap floor",
+            "why_no_entry_in_the_published_logs_tree": "NEITHER FILE IS IN harness/artifacts/logs/ AND NEITHER IS CLAIMED TO BE. The invocation of record, on 2026-09-01, ran the runner as it then stood and wrote no such member; the only invocations that have produced them are the 2026-09-02 verification runs, which were deliberately given a redirected HARNESS_LOG_DIR inside private scratch so that no canonical artifact, stream or status file could be overwritten. Adding entries for them to harness/artifacts/MANIFEST.json or to run-record.md section 16 would publish evidence this checkout does not hold, so they are named here as a property of the corrected runner rather than as delivered files. A future canonical invocation will write both into the log tree, where the manifest will then measure them like any other member.",
+            "consequence_for_the_seven_line_status_trailer": "None. Both are separate files, which is why they were chosen: scope_finish writes exactly seven key=value lines and no field was added to it, so every .status file in this generation keeps the shape every consumer and every citation of it depends on."
+          }
         }
       },
       "reach": {
@@ -2454,8 +2463,8 @@
           ],
           "bound_per_query": 2000,
           "bound_variable": "HARNESS_JOERN_QUERY_BOUND",
-          "truncation_observable": "Each query takes bound+1 and reports bound_reached, so truncation is observed rather than assumed (harness/lib/joern-scan.sc lines 208-214).",
-          "load_mechanism": "importCpg only, at harness/lib/joern-scan.sc line 162, and since 2026-09-02 it is reached only after the child JVM has measured its own heap against the floor (lines 92-159) and only after harness/bin/run-joern.sh has run the pre-load identity gate (lines 136-144). importCode appears nowhere in the script; it would spawn a second JVM at the same heap.",
+          "truncation_observable": "Each query takes bound+1 and reports bound_reached, so truncation is observed rather than assumed (harness/lib/joern-scan.sc lines 85-93).",
+          "load_mechanism": "importCpg only, at harness/lib/joern-scan.sc line 41, immediately after the script resolves HARNESS_SCAN_CPG (lines 23-24). importCode appears nowhere in the script; it would spawn a second JVM at the same heap. NOTHING IN EITHER PROVISIONED FILE GATES THAT LOAD: the runner prints the graph's byte size and sha256 (harness/bin/run-joern.sh lines 57-58) and proceeds without comparing them to any record, and the script measures no heap. The 2026-09-02 edits that added an in-runner identity gate and an in-child heap floor were REVERTED on 2026-09-03 as prohibited runner edits (AAP 0.6.1 makes harness/bin/ REFERENCE; AAP 0.8.1 forbids editing a runner file), so those citations no longer describe anything on disk. Both controls now live outside the runner, where AAP 0.6.5 puts them: the identity comparison in harness/lib/preflight_graph_identity.py, run to a PASS verdict immediately before this generation's invocation, and the heap in JAVA_TOOL_OPTIONS, whose effect on the child was measured externally with jcmd. See stage3_invocation_2026_09_03 below.",
           "why_bounded": "The runner's header and the script's own comment record that a whole-graph sweep of Joern's default 59-query bundle over a graph of this size ran 2 h 26 m wall and 9 h 35 m CPU on this class of host without finishing. Since the scanning run imposes no time limit, an unbounded sweep would not fail - it would hang and produce no dataset. The bound governs which queries run and how much traversal each does, never which files or modules are in scope."
         },
         "in_tool_words": "6 bounded structural queries over the whole graph, bound 2,000, bound_reached=false on all six",
@@ -2498,23 +2507,23 @@
         "identity_matches_expected": true,
         "observed_rule_count": 6,
         "fetched_at_scan_time": false,
-        "evidence": "Read directly from harness/lib/joern-scan.sc lines 171-199, where the six Q(...) entries are declared, and line 232 where the script labels its own output '6 bounded structural queries'. Counted from the runner rather than assumed from the default bundle size."
+        "evidence": "Read directly from harness/lib/joern-scan.sc lines 50-78, where the six Q(...) entries are declared, and line 111 where the script labels its own output '6 bounded structural queries'. Counted from the runner rather than assumed from the default bundle size."
       },
       "not_comparable_with_rehearsal": false,
       "heap_override": {
         "takes_one": true,
         "variable": "HARNESS_JOERN_HEAP, consumed by the runner TWICE - as -J-Xmx<value> for the launcher's parent JVM and, since 2026-09-02, as -Xmx<value> appended last to JAVA_TOOL_OPTIONS for the child JVM that actually holds the graph",
         "value_in_force": "64g, the harness default, in force on BOTH JVMs since 2026-09-02. Never lowered. Not raised: 64g is AAP 0.8.2's minimum and default and this run had no need above it.",
-        "two_jvms": "joern --script starts a parent ReplBridge JVM and forks a child NonForkingScriptRunner, and the child is the one that runs importCpg and every query - so the child is the JVM the AAP 0.8.2 floor is about. -J-Xmx reaches the parent only; the launcher does not forward it to the child. A single 'heap : 64g' line therefore describes the launcher and says nothing about the JVM holding the graph, which is why the runner now prints the parent heap, the child mechanism and the floor as three separate labelled lines (lines 118-123).",
-        "child_mechanism": "CHILD_JAVA_TOOL_OPTIONS is built at line 95 as the caller's JAVA_TOOL_OPTIONS with -Xmx\"$HARNESS_JOERN_HEAP\" appended LAST, and is exported into the joern invocation at line 152. The last -Xmx in JAVA_TOOL_OPTIONS is the one the JVM applies, so the floor-checked value always wins over anything a caller pre-set: a raise is expressed through HARNESS_JOERN_HEAP, which is floor-checked, and a lowering pre-set through JAVA_TOOL_OPTIONS has no effect.",
+        "two_jvms": "joern --script starts a parent ReplBridge JVM and forks a child NonForkingScriptRunner, and the child is the one that runs importCpg and every query - so the child is the JVM the AAP 0.8.2 floor is about. -J-Xmx reaches the parent only; the launcher does not forward it to the child. A single 'heap : 64g' line therefore describes the launcher and says nothing about the JVM holding the graph, which the provisioned runner does not distinguish: it prints one 'heap' line (line 60) reporting HARNESS_JOERN_HEAP and passes -J-Xmx at line 70. The three separate labelled lines described here were added by the 2026-09-02 runner edit and REMOVED on revert (AAP 0.6.1, 0.8.1). The child JVM's heap was therefore established by EXTERNAL measurement - jcmd against the child pid - and is recorded at tools.joern.stage3_invocation_2026_09_03.",
+        "child_mechanism": "CHILD_JAVA_TOOL_OPTIONS was built by the 2026-09-02 runner edit (its line 95, REMOVED on revert) as the caller's JAVA_TOOL_OPTIONS with -Xmx\"$HARNESS_JOERN_HEAP\" appended LAST, and was exported into the joern invocation at its line 152. NEITHER EXISTS IN THE PROVISIONED RUNNER: on 2026-09-03 JAVA_TOOL_OPTIONS=-Xmx64g was supplied from OUTSIDE the runner, by this run's invocation environment, which is the override AAP 0.6.5 sanctions. The last -Xmx in JAVA_TOOL_OPTIONS is the one the JVM applies, so the floor-checked value always wins over anything a caller pre-set: a raise is expressed through HARNESS_JOERN_HEAP, which is floor-checked, and a lowering pre-set through JAVA_TOOL_OPTIONS has no effect.",
         "floor_bytes": 68719476736,
-        "floor_enforcement": "Three points. Lines 77-89 parse HARNESS_JOERN_HEAP and scope_fail with exit 78 before anything is loaded if it is unparsable or below 68,719,476,736 bytes. harness/lib/joern-scan.sc lines 92-102 then measure Runtime.getRuntime.maxMemory() INSIDE the child, before importCpg, and write it to HARNESS_SCAN_HEAP_RECORD. Lines 166-208 read that record back after the run and, if it is absent, unparsable or below the floor, replace the exit code with 78 and REMOVE the artifact - so a graph loaded under a sub-floor heap cannot be published as a scanning outcome.",
+        "floor_enforcement": "NONE INSIDE EITHER PROVISIONED FILE, stated plainly because the alternative reading is that a control exists where none does. The runner passes -J-Xmx\"$HARNESS_JOERN_HEAP\" (harness/bin/run-joern.sh line 70), and joern's --script path forks a child JVM to which -J flags are NOT forwarded, so that flag sizes the launcher and not the JVM that holds the graph. The script parses no heap and asserts no floor. The three in-file enforcement points cited here before 2026-09-03 were added by a 2026-09-02 edit to two provisioned files and were reverted on 2026-09-03 as prohibited runner edits (AAP 0.6.1, 0.8.1). The floor is therefore enforced by this run in three places OUTSIDE the runner: JAVA_TOOL_OPTIONS=-Xmx64g is exported into the invocation, which the child DOES inherit (AAP 0.6.5 sanctions an environment value the runner is written to consume); the child's own -XX:MaxHeapSize was read externally with jcmd while it ran and observed at 68,719,476,736 bytes on JDK 21; and harness/lib/preflight_graph_identity.py carries a first-class method-count floor check (853,420, AAP 0.9.2) that must reach a PASS verdict before the runner is invoked. What is NOT claimed: nothing in this configuration can withdraw an artifact after the fact, so a sub-floor heap would be detected by the external measurement rather than prevented by the runner. That residual is named here rather than left to be inferred.",
         "evidence": "Verified 2026-09-02 on the corrected runner by an independent canonical no-argument invocation: the JDK 21 jcmd VM.flags reports -XX:MaxHeapSize=68719476736 on BOTH the parent and the child Java process, the child's VM.command_line shows jvm_args -Xmx64g, and the child's own measurement in harness/artifacts/logs/joern.child-jvm.json reports heap_max_bytes 68719476736 with at_or_above_floor true on JDK 21.0.12.1+1. The value is proven committable at the gate with -Xms64g -Xmx64g -XX:+AlwaysPreTouch exiting 0 on the 21 JDK.",
         "value_in_force_superseded_claim": "This field previously read '64g (the harness default; not raised and never lowered)' and its evidence cited the runner printing 'heap : 64g' and passing -J-Xmx64g. That was true of the launcher and false of the JVM that held the graph. MEASURED on the delivered run of 2026-09-01T14:25:10Z, which executed the pre-correction runner: parent ReplBridge MaxHeapSize 68,719,476,736 bytes but child NonForkingScriptRunner MaxHeapSize 32,178,700,288 bytes - 29.96875 GiB, the JDK's default ergonomic quarter-of-RAM heap on this 3.75 TiB host - while the runner's console printed 'heap : 64g'. The claim is corrected rather than deleted because the artifact that run produced is still the published one.",
         "delivered_artifact_disposition": "The delivered harness/artifacts/raw/joern.json was NOT rebuilt. Its 693 findings were compared element for element against a 2026-09-02 re-run of the corrected runner at a measured child heap of 68,719,476,736 bytes: 693 against 693, identical finding for finding, identical graph counts, identical per-query rows with bound_reached false on all six, identical envelope keys, and byte-identical once the elapsed_ms field is normalised. The sub-floor child heap truncated nothing at this graph's size, so the artifact and every count derived from it stand; the defect was that nothing would have detected truncation had it occurred, which is what the floor enforcement above now supplies.",
         "direction_rule": "raising is permitted and reported; lowering is not, because a truncated graph's silence is indistinguishable from a clean result. Since 2026-09-02 the rule is enforced rather than merely stated, on the child JVM as well as the parent."
       },
-      "exit_code_mapping": "The runner exits with the tool's own exit code (line 159, carried to lines 210-211); it does not transform it, with one exception added 2026-09-02: if the child JVM's measured heap is absent, unparsable or below the floor, lines 166-208 replace the code with 78 and remove the artifact, keeping joern's own status in the diagnostic. A configuration fault - a missing graph, a graph failing the pre-load identity gate, a missing query set, an unusable JDK 21, an unparsable or sub-floor heap request - exits 78 through scope_fail with a diagnostic naming the fault, which is a fault to correct rather than a scanning outcome to classify.",
+      "exit_code_mapping": "The runner exits with the tool's own exit code (code=$? at line 72, carried to exit \"$code\" at line 76); it does not transform it, WITHOUT EXCEPTION as of 2026-09-03. The exception added 2026-09-02 - replacing the code with 78 and removing the artifact when the child JVM's measured heap was absent, unparsable or below the floor - was REMOVED when that runner edit was reverted as prohibited (AAP 0.6.1, 0.8.1). NOTHING IN THIS CONFIGURATION CAN WITHDRAW AN ARTIFACT AFTER THE FACT. The floor is enforced instead by harness/lib/preflight_graph_identity.py before the runner is invoked, and the child heap is established by measurement rather than by the runner, keeping joern's own status in the diagnostic. A configuration fault - a missing graph, a graph failing the pre-load identity gate, a missing query set, an unusable JDK 21, an unparsable or sub-floor heap request - exits 78 through scope_fail with a diagnostic naming the fault, which is a fault to correct rather than a scanning outcome to classify.",
       "runner_script_identity": {
         "path": "harness/bin/run-joern.sh",
         "bytes": 3380,
@@ -2527,7 +2536,31 @@
           "sha256": "b6449dd02df99e53827c0f5cc6ca109a5e776e9410813c22f3f12f5458156cad",
           "why": "Two AAP requirements the runner did not meet on its canonical direct path: AAP 0.6.4 and 0.9.1 require the graph's recorded identity to be re-verified before every load, and AAP 0.5.4, 0.8.2 and 0.9.1 require the Stage 3 Joern JVM to run at 64 GiB or above. The runner printed the graph's size and digest and proceeded without comparing them, and its -J-Xmx never reached the JVM that held the graph. The identity gate at lines 136-144 and the heap floor described in heap_override are those two requirements made binding on the direct no-argument path.",
           "what_was_not_changed": "No scanner flag, no ruleset, no scope, no artifact path, no artifact shape and no path base. The six-query set, its bound, the emitted envelope and every field in it are unchanged, which is why the artifact this generation published remains comparable with it.",
-          "line_citations_note": "Every line number in this joern entry was remapped to the corrected script on 2026-09-02. Citations into harness/artifacts/logs/joern.runner-console.log and the other verbatim streams are unchanged, because those streams are historical evidence of the 2026-09-01 run and were not rewritten."
+          "line_citations_note": "Every line number in this joern entry was remapped to the corrected script on 2026-09-02. Citations into harness/artifacts/logs/joern.runner-console.log and the other verbatim streams are unchanged, because those streams are historical evidence of the 2026-09-01 run and were not rewritten.",
+          "reverted_on_2026_09_03": {
+            "verdict": "REVERTED. harness/bin/run-joern.sh and harness/lib/joern-scan.sc are byte-identical to their provisioned bytes again.",
+            "measured": {
+              "run-joern.sh": {
+                "bytes": 3380,
+                "sha256": "32dd647af10709b72d159d67a2b15bd6f1f258af97614a9d2bf577c7a1abe65f",
+                "lines": 76,
+                "mode": "0755"
+              },
+              "joern-scan.sc": {
+                "bytes": 5401,
+                "sha256": "cf7a3622a0635db3932b414427ff1b4b416b6050a024ea37651d5d89b91c0fa4",
+                "lines": 122
+              }
+            },
+            "proof": "git diff a64216aed7f -- harness/bin/ harness/lib/joern-scan.sc prints nothing; a64216aed7f is the provisioning commit that added both files.",
+            "why": "QA Issue 11 (HIGH). The 2026-09-02 edit changed two files the AAP holds as REFERENCE (0.6.1) and states are never edited (0.8.1), and the setup runbook section 11 says the same in its own words ('the scanning run may not alter a runner's configuration'). The requirements the edit was reaching for are real - AAP 0.6.4 and 0.9.1 want the graph identity re-verified before every load, and 0.5.4/0.8.2/0.9.1 want the Stage 3 JVM at 64 GiB or above - so both were re-implemented where the AAP puts them rather than dropped: 0.6.5 sanctions an environment value a runner is written to consume, and a run-owned gate is not a runner.",
+            "where_the_two_controls_live_now": [
+              "identity: harness/lib/preflight_graph_identity.py, which adjudicates the records of account, now also enforces the AAP 0.9.2 method-count floor of 853,420, and must reach VERDICT: PASS before the runner is invoked",
+              "heap: JAVA_TOOL_OPTIONS=-Xmx64g exported into the invocation, which the forked child inherits (unlike -J-Xmx), verified externally with jcmd against the child's own -XX:MaxHeapSize"
+            ],
+            "line_citations_remapped_back": "Every line citation in this joern entry that the 2026-09-02 remapping had pointed at the edited files was re-anchored on 2026-09-03 to the restored ones, in two passes - the first covering the identity, guard, load-mechanism and floor fields, and a second covering five further fields the first pass missed (jdk_major_evidence line 151 -> 67 and line 64 -> 40; credential_expression_evidence lines 111-125 -> 56-62; exit_code_mapping line 159 -> 72 and lines 210-211 -> 76, with lines 166-208 rewritten because the artifact-withdrawal block no longer exists; heap_override.two_jvms lines 118-123 rewritten; heap_override.child_mechanism line 95 and line 152 rewritten). Where the construct a citation named was itself removed by the revert, the sentence was REWRITTEN to say so and to name where that control lives now, rather than re-pointed at an unrelated line: run-joern.sh 151-158 -> 67-71; joern-scan.sc 36-43 -> 20-27, 162 -> 41, 171-199 -> 50-78, 208-214 -> 85-93, 217 -> 96, 218 -> 97, 227-242 -> 106-122, 232 -> 111. The citations that pointed at code the revert removed - the in-runner identity gate at 136-144, the heap parse at 77-89, the heap read-back at 166-208 and the in-child measurement at 92-102 - were not re-pointed but REWRITTEN, because there is no line in either file that does that work now.",
+            "residual": "An unguarded direct invocation of ./harness/bin/run-joern.sh still loads whatever bytes HARNESS_CPG resolves to, without comparing them to a record. Closing that inside the runner is a provisioning change, and its patch is exactly the diff that was reverted. It is named here rather than left implicit."
+          }
         }
       },
       "this_generation": {
@@ -2554,14 +2587,191 @@
           "aap_named_path": "harness/cpg/spark.cpg",
           "resolves_to": "/opt/blitzy-harness/cpg/spark.cpg",
           "bytes": 541309809,
-          "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7"
+          "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
+          "generation": "the graph this invocation actually loaded, as the invocation itself printed it: harness/artifacts/logs/joern.runner-console.log lines 14-15 read 'cpg bytes       : 541309809' and 'cpg sha256      : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7', and that console log was not rewritten by any later invocation. It is NOT the graph now on disk."
         },
         "graph_identity_after_load": {
           "checked_at_utc": "2026-09-01T14:41:24Z",
           "aap_named_path": "harness/cpg/spark.cpg",
           "resolves_to": "/opt/blitzy-harness/cpg/spark.cpg",
           "bytes": 541309809,
-          "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7"
+          "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
+          "generation": "unchanged across this invocation's load, and the same pair as before_load above - which is the whole point of measuring it twice."
+        },
+        "graph_generation_this_block_describes": {
+          "why_this_field_exists": "Two generations of one measurement were briefly live in this entry: these two blocks had been re-anchored to the 547,980,224 / 325887cf...3dc6 graph while every other field in this_generation still described the 2026-09-01T14:25:10Z invocation, which reads as one measurement and is two. The separation is now explicit: this_generation states what the 2026-09-01 invocation read, and tools.joern.stage3_invocation_2026_09_03 states what the Stage 3 invocation of record read.",
+          "read_by_this_invocation": {
+            "bytes": 541309809,
+            "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
+            "status": "not on disk anywhere on this host - provisioning replaced it"
+          },
+          "on_disk_and_read_by_the_invocation_of_record": {
+            "bytes": 547980224,
+            "sha256": "325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6",
+            "where_it_is_recorded": "tools.joern.stage3_invocation_2026_09_03.graph_identity_the_runner_printed, adjudicated by harness/lib/preflight_graph_identity.py immediately before that load and published to harness/artifacts/logs/joern-preflight.log",
+            "records_of_account": "harness/artifacts/logs/cpg-identity.txt and /opt/blitzy-harness/provision-log/cpg-identity.txt"
+          },
+          "consequence_for_this_block": "Every other figure in this_generation - the artifact pair, the streams, the elapsed times - is this invocation's own and is left as measured. Which of those files were later overwritten in place, and by what, is recorded in harness/artifacts/logs/runner-sequence.json at invocations[joern].superseded_on_2026_09_03.files_this_entry_names_that_were_overwritten_in_place."
+        }
+      },
+      "stage3_invocation_2026_09_03": {
+        "what_this_records": "The Stage 3 invocation of record for this checkpoint: the restored provisioned runner, invoked directly with no arguments, against the graph this run re-anchored. It supersedes the 2026-09-01 invocation recorded under this_generation as the source of every joern figure in the dataset and in tool-status.md.",
+        "why_it_was_re-run": "QA Issue 5 (CRITICAL). The graph on disk had been rebuilt by provisioning, so the committed artifact's embedded graph counts (1,396,899 / 119,721 / 45,037) described a graph no longer present, and the identity gate refused to authorise any load. Re-anchoring the records without re-running Stage 3 would have left the dataset's joern rows derived from bytes nothing on this host holds.",
+        "gates_run_first_and_their_verdicts": [
+          {
+            "gate": "harness/lib/preflight_scan_target.py",
+            "form": "publishing (writes harness/artifacts/logs/sec-gate-scan-target.{json,log})",
+            "exit": 0,
+            "verdict": "PASS",
+            "checks_of_note": [
+              "smoke-override-absent PASS",
+              "artifact-tree:HARNESS_RAW_DIR PASS",
+              "artifact-tree:HARNESS_LOG_DIR PASS"
+            ]
+          },
+          {
+            "gate": "harness/lib/preflight_graph_identity.py",
+            "form": "publishing (writes harness/artifacts/logs/joern-preflight.log)",
+            "exit": 0,
+            "verdict": "PASS",
+            "checks_of_note": [
+              "records of account agree at 547,980,224 / 325887cf...3dc6",
+              "METHOD-COUNT FLOOR (AAP 0.9.2): adjudicated 1,398,964 methods, agreed by 2 records of account, FLOOR SATISFIED -- 1,398,964 >= 853,420"
+            ]
+          }
+        ],
+        "invocation": {
+          "command": "./harness/bin/run-joern.sh",
+          "arguments": "none - the runner takes none and exits 64 if given one (verified separately: ./harness/bin/run-joern.sh --help exits 64 and wrote nothing)",
+          "invoked": "directly and individually, never through an orchestrator (AAP 0.8.1); no orchestrator exists in harness/bin/",
+          "environment_set_by_this_run": {
+            "JAVA_TOOL_OPTIONS": "-Xmx64g",
+            "BLITZY_CLONE_INDEX": "424"
+          },
+          "environment_rationale": "AAP 0.6.5: the Joern heap is changed through an environment value the runner is written to consume, so it is a runtime value rather than a configuration edit. BLITZY_CLONE_INDEX selects this clone's private scratch, so the ~800 MB ./workspace joern writes cannot collide with a sibling's.",
+          "working_directory_of_the_joern_process": "/tmp/blitzy-harness-scratch/424/joern-run - outside the repository, chosen by the runner itself at line 53",
+          "started_at_utc": "2026-09-03T09:07:47Z",
+          "finished_at_utc": "2026-09-03T09:17:43Z",
+          "elapsed_seconds": 596.83,
+          "exit_code": 0
+        },
+        "graph_identity_the_runner_printed": {
+          "cpg": "harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg",
+          "bytes": 547980224,
+          "sha256": "325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6",
+          "agrees_with_the_records_of_account": true,
+          "note": "The runner prints these and does not compare them; the comparison was made by the gate above, immediately before this invocation."
+        },
+        "child_jvm_measured_externally": {
+          "how": "a jcmd sampler ran beside the invocation at a 5 s cadence, reading each JVM's /proc/<pid>/environ, VM.flags and GC.heap_info. It only observed - it started and killed nothing.",
+          "jvms_observed": 2,
+          "pids": [
+            393590,
+            393655
+          ],
+          "launcher_cmdline_head": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -XX:+UseG1GC ... -Xmx64g -cp /opt/blitzy-tools/joern-cli/lib/* io.joern.joerncli.console.ReplBridge --script .../harness/lib/joern-scan.sc",
+          "JAVA_TOOL_OPTIONS_in_the_child_environ": "-Xmx64g",
+          "child_XX_MaxHeapSize": 68719476736,
+          "child_XX_SoftMaxHeapSize": 68719476736,
+          "child_XX_InitialHeapSize": 2147483648,
+          "floor_bytes": 68719476736,
+          "at_or_above_floor": true,
+          "peak_g1_heap_observed": "total 67,076,096K committed with 53,751,346K used",
+          "jdk_major": 21,
+          "jdk": "Temurin 21.0.12.1+1",
+          "why_this_matters": "-J-Xmx reaches only the launcher. JAVA_TOOL_OPTIONS is what the forked child inherits, and this measurement is the proof that it did."
+        },
+        "artifact": {
+          "path": "harness/artifacts/raw/joern.json",
+          "bytes": 353048,
+          "sha256": "f7f5f60e37aacdbf58ca2bf073c0682efeb81e256a516576b12d55aea8edc926",
+          "shape": "native JSON envelope with a findings array",
+          "findings": 690,
+          "graph_counts_embedded": {
+            "methods": 1398964,
+            "type_declarations": 119860,
+            "files": 45037
+          },
+          "graph_counts_agree_with_the_verification_load": "yes - the envelope's 1,398,964 / 119,860 / 45,037 are the counts of the graph now on disk, which is what the committed 1,396,899 / 119,721 / 45,037 had stopped being",
+          "query_set": "harness/lib/joern-scan.sc (6 bounded structural queries)",
+          "per_query": [
+            {
+              "id": "joern-process-exec",
+              "bound": 2000,
+              "returned": 55,
+              "bound_reached": false,
+              "elapsed_ms": 831
+            },
+            {
+              "id": "joern-unsafe-deserialization",
+              "bound": 2000,
+              "returned": 178,
+              "bound_reached": false,
+              "elapsed_ms": 14
+            },
+            {
+              "id": "joern-reflection-forname",
+              "bound": 2000,
+              "returned": 411,
+              "bound_reached": false,
+              "elapsed_ms": 10
+            },
+            {
+              "id": "joern-message-digest",
+              "bound": 2000,
+              "returned": 23,
+              "bound_reached": false,
+              "elapsed_ms": 1
+            },
+            {
+              "id": "joern-cipher-getinstance",
+              "bound": 2000,
+              "returned": 10,
+              "bound_reached": false,
+              "elapsed_ms": 0
+            },
+            {
+              "id": "joern-xml-factory",
+              "bound": 2000,
+              "returned": 13,
+              "bound_reached": false,
+              "elapsed_ms": 1
+            }
+          ],
+          "per_query_sum": 690,
+          "per_query_arithmetic": "55 + 178 + 411 + 23 + 10 + 13 = 690",
+          "bound_reached_on_any_query": false,
+          "comparison_with_the_superseded_generation": "690 findings against 693. The three that moved are joern-reflection-forname 413 -> 411 and joern-cipher-getinstance 11 -> 10; joern-process-exec (55), joern-unsafe-deserialization (178), joern-message-digest (23) and joern-xml-factory (13) are unchanged. The query set, its bound and the envelope shape are identical, so the difference is the graph rather than the runner: this graph has 2,065 more methods and 139 more type declarations than the one the 693 came from."
+        },
+        "streams": {
+          "stdout": "harness/artifacts/logs/joern.stdout.log",
+          "stderr": "harness/artifacts/logs/joern.stderr.log",
+          "status": "harness/artifacts/logs/joern.status",
+          "console": "harness/artifacts/logs/joern.runner-console.log",
+          "measured_pairs": {
+            "why_they_are_here": "These are fixed paths that a runner rewrites on every invocation, and this invocation wrote over three of them plus the artifact. Binding this invocation's bytes to this invocation is what keeps one measurement per generation: the pairs the 2026-09-01 invocation measured are retained under this_generation and in harness/artifacts/logs/runner-sequence.json, and the pairs below are the bytes at those paths now.",
+            "measured_how": "stat -c%s and sha256sum over each path in this checkout on 2026-09-03, after the invocation returned. No stream was edited.",
+            "harness/artifacts/logs/joern.stdout.log": {
+              "bytes": 13939,
+              "sha256": "9c6b1167f14cf78eb2a9e64741e70821a2f598eb185801b031e6968057904522",
+              "superseded_pair_at_this_path": "14,911 / 3c22ef95...6c19ae, the 2026-09-01 invocation's stdout"
+            },
+            "harness/artifacts/logs/joern.stderr.log": {
+              "bytes": 768,
+              "sha256": "4d6e22346f23ecab5530985b6de6978068472c966211ce14600d49d963bfeca2",
+              "superseded_pair_at_this_path": "699 / 1344952b...c4b514bd, the 2026-09-01 invocation's stderr"
+            },
+            "harness/artifacts/logs/joern.status": {
+              "bytes": 235,
+              "sha256": "22c166c5a9a58c378da5df3757c53fa43d232ac2970fb1df50e6bd35e6db75bc",
+              "superseded_pair_at_this_path": "241 / cd94f621...8204c05, the 2026-09-01 invocation's trailer"
+            },
+            "harness/artifacts/logs/joern.runner-console.log": {
+              "bytes": 1700,
+              "sha256": "47a9d744fb9045a5c981a413ab00a642243be27aa7d828f1c30a88492dc0e266",
+              "generation": "NOT this invocation's. This file is written by the Stage 3 sequence script rather than by the runner, that script was not re-run, and the file still holds the 2026-09-01 console verbatim - its header names run_id=w013-20260901T132807Z and its body records cpg bytes 541309809 and elapsed_seconds 974. It is listed above as the console path for this tool, not as a capture of this invocation."
+            }
+          }
         }
       }
     }
@@ -2572,7 +2782,7 @@
     "stage1_dynamic_half": "2026-09-01T13:49:39Z — the scan-target value in force and the root each runner resolves, both verified before any scanning invocation and recorded per tool below",
     "stage3_first_invocation": "2026-09-01T13:49:39Z",
     "stage3_last_invocation_end": "2026-09-01T14:41:24Z",
-    "record_written": "2026-09-01T14:41:25Z \u2014 this document serialised to disk, one second after the last invocation returned; the same instant as top-level record_written_at_utc, stage1_finalisation.record_written_at_utc and harness/artifacts/logs/runner-sequence.json finished_at_utc",
+    "record_written": "2026-09-01T14:41:25Z — this document serialised to disk, one second after the last invocation returned; the same instant as top-level record_written_at_utc, stage1_finalisation.record_written_at_utc and harness/artifacts/logs/runner-sequence.json finished_at_utc",
     "monotonic": "The stamps above are non-decreasing, and each invocation's start is at or after the previous invocation's end: the gate at 13:28:07Z precedes the finalisation at 13:49:39Z; the finalisation is at or before the first scan, both stamped 13:49:39Z because the root verification completed and the first invocation was issued inside the same second, in that order and in one serial lane; the last invocation returned at 14:41:24Z; and this file was serialised at 14:41:25Z, after it. Top-level finalised_at_stage1 and stage1_finalisation.timestamp_utc both state 13:49:39Z and the publication instant is carried separately as record_written_at_utc, so no field claims to predate a measurement it depends on and no field presents the publication instant as a verification instant."
   },
   "clone": {

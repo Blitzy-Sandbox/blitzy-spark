@@ -8,11 +8,11 @@ WHAT THIS FILE ESTABLISHES
 ================================================================================
 
   The post-frontend importCpg verification load, performed by THIS generation
-  in clone 13: the independent check that the graph the Joern stages load is
-  loadable and non-empty, what its three counts are, and which modules' own
-  code it demonstrably contains. A frontend or a record reporting success is
-  not evidence that a graph is usable, so every count below is re-derived from
-  the artefact itself by the load whose console output is APPENDIX A.
+  in clone 424: the independent check that the graph the Joern stages load
+  is loadable and non-empty, what its three counts are, and which modules'
+  own code it demonstrably contains. A frontend or a record reporting
+  success is not evidence that a graph is usable, so every count below is
+  re-derived from the artefact itself by a load of 2026-09-03 (PART 3).
 
   It is the second of the AAP's four heap-bound JVM invocations (0.5.4) - the
   frontend build, THIS load, the Stage 3 Joern runner and the Stage 5 probe -
@@ -20,31 +20,31 @@ WHAT THIS FILE ESTABLISHES
   are recorded separately, with the graph's identity re-verified immediately
   before the load.
 
-  HOW THIS FILE IS ORGANISED. PHASES 1 to 3 and APPENDIX A are about the graph
-  at the sanctioned path, the one every stage of this run loaded. PART 2, at
-  the end of the file, is about a DIFFERENT graph: the per-module witness graph
-  of harness/artifacts/logs/cpg-frontend.log PART 2, loaded in its own JVM to
-  answer a frontend-capability question. Nothing in PART 2 is a verdict about
-  the graph the runners read, and PART 2 states that at its head.
+  HOW THIS FILE IS ORGANISED. PHASES 1 to 3 and PART 3 concern the graph at
+  the sanctioned path, the one every stage of this run loaded; PART 3 records
+  the three loads that measured it on 2026-09-03. APPENDIX A and PART 2 are
+  history of OTHER lanes, left verbatim: APPENDIX A is the 2026-09-01 load's
+  own console, PART 2 a DIFFERENT graph (the witness graph of
+  cpg-frontend.log PART 2). Neither is a verdict about what the runners read.
 
 ================================================================================
 SUBJECT
 ================================================================================
 
-  Run id                      : w013-20260901T132807Z
-  Clone index                 : 13
+  Run id                      : w424-20260903T093613Z
+  Clone index                 : 424
   Pinned commit               : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
   Pinned clone (SPARK_SRC)    : /opt/spark-src   (never edited, never built by this run)
   Graph, as the AAP names it  : harness/cpg/spark.cpg   (a provisioned 33-byte symlink)
   Graph, resolved             : /opt/blitzy-harness/cpg/spark.cpg
-  Graph bytes                 : 541309809
-  Graph sha256                : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+  Graph bytes                 : 547980224
+  Graph sha256                : 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
   Load mechanism              : importCpg, called as a statement, and nothing else
   Engine                      : Joern 4.0.607, joern --script
   JDK                         : Temurin 21.0.12.1+1 (major 21), JAVA_HOME_21
   Heap                        : -J-Xmx64g, proven committable at the gate with -Xms64g -Xmx64g +AlwaysPreTouch
-  Workspace                   : /tmp/blitzy/scratch/.../w-013/joern-verify   (outside the repository)
-  Load elapsed                : 885009 ms
+  Workspace                   : /tmp/blitzy-harness-scratch/424/wave2-joern   (outside the repository)
+  Load elapsed                : 526605 ms   (reproduced at 557041 ms and 545644 ms - PART 3)
   Script                      : cpg-verify.sc, retained in this run's private scratch
 
 ================================================================================
@@ -52,9 +52,9 @@ GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE THE LOAD
 ================================================================================
 
 === identity check immediately before load ===
-2026-09-01T13:31:15.334Z
-541309809 bytes  /opt/blitzy-harness/cpg/spark.cpg
-4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7  /opt/blitzy-harness/cpg/spark.cpg
+2026-09-03T09:36:13Z
+547980224 bytes  /opt/blitzy-harness/cpg/spark.cpg
+325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6  /opt/blitzy-harness/cpg/spark.cpg
 /opt/blitzy-harness/cpg/spark.cpg
 
   Both names for the graph resolve to those bytes: the AAP's
@@ -81,18 +81,18 @@ PROVENANCE - WHO BUILT THIS GRAPH, STATED BEFORE ITS NUMBERS ARE USED
   divergence. What this file establishes is what the graph the Joern stages DO
   load contains - never that it is the graph the AAP asked for.
 
-  The environment record harness/ENVIRONMENT.md describes a different graph -
-  541,255,894 bytes, sha256 26d327cc...fcffc, 1,397,339 methods - which is not
-  on disk. That contradiction is the second gate halt
-  (gate.environment_record_graph_identity_agreement) and both values are
-  recorded wherever either is cited.
+  The environment record harness/ENVIRONMENT.md formerly described a graph
+  that is not on disk - 541,255,894 bytes, sha256 26d327cc...fcffc, 1,397,339
+  methods. That contradiction was the second gate halt
+  (gate.environment_record_graph_identity_agreement); it is RESOLVED as of
+  2026-09-03 - see PART 3 - and both values are recorded wherever cited.
 
 ================================================================================
 PHASE 1 - THE THREE COUNTS, AGAINST THE EXPECTED VALUES
 ================================================================================
 
   WHAT GRAPH THESE THREE COUNTS ARE OF: the bytes at the sanctioned path, which
-  PROVISIONING wrote over a 62-archive / 285,122,371-byte input set drawn from
+  PROVISIONING wrote over a 62-archive / 285,122,375-byte input set drawn from
   31 modules, with -tests and connect-shims archives excluded by its own
   instruction (PROVENANCE above; harness/artifacts/logs/cpg-graph-record.log).
   They are NOT the counts of a graph over every JAR the reactor produced - no
@@ -103,18 +103,18 @@ PHASE 1 - THE THREE COUNTS, AGAINST THE EXPECTED VALUES
   check that an all-JAR graph was built.
 
   count                     expected    observed       delta  rule
-  methods                    898,336   1,396,899    +498,563  ONE-SIDED: floor 853,420, no upper bound
-  typeDecls                   87,381     119,721     +32,340  anchor, reported; no threshold - AAP 0.9.3
+  methods                    898,336   1,398,964    +500,628  ONE-SIDED: floor 853,420, no upper bound
+  typeDecls                   87,381     119,860     +32,479  anchor, reported; no threshold - AAP 0.9.3
   files                       38,818      45,037      +6,219  anchor, reported; no threshold - AAP 0.9.3
 
-  internal methods      : 1,307,112
-  external methods      : 89,787
-  methods in org.apache.spark.*: 925,445 (66.25% of all methods)
-  pom.properties file nodes: 102
+  internal methods      : 1,308,974   (verification load)
+  external methods      : 89,990      (corroboration load - PART 3)
+  methods in org.apache.spark.*: 927,304 (66.29% of all methods - PART 3)
+  pom.properties file nodes: 102      (corroboration load - PART 3)
 
-  NON-EMPTY CHECK (AAP 0.9.1): the load reports methods > 0 - 1,396,899 is not
+  NON-EMPTY CHECK (AAP 0.9.1): the load reports methods > 0 - 1,398,964 is not
   zero, and a graph that loads with zero methods is indistinguishable from a
-  clean scan. FLOOR CHECK: 1,396,899 is at or above the one-sided floor of
+  clean scan. FLOOR CHECK: 1,398,964 is at or above the one-sided floor of
   853,420, so the truncation signature the floor exists to catch is absent.
   The count is above the 898,336 anchor because the anchor was measured over a
   narrower input set; a count above it is recorded, never halted, and no input
@@ -813,6 +813,284 @@ closing/saving project `witness.cpg`
 ====================================================================================================
 END OF PART 2
 ====================================================================================================
+
+================================================================================
+PART 3 - THE THREE VERIFICATION LOADS OF 2026-09-03, AND WHAT EACH MEASURED
+================================================================================
+
+  WHY THIS PART EXISTS AND WHAT IT SUPERSEDES. Every figure in PHASES 1 to 3
+  above was, until 2026-09-03, a measurement of a DIFFERENT artefact: the
+  graph of 2026-09-01, 541,309,809 bytes, sha256 4616845a...4730c7, whose
+  counts were 1,396,899 methods / 119,721 typeDecls / 45,037 files, loaded in
+  clone 13 in 885,009 ms. That artefact is gone: the environment was
+  re-provisioned at 2026-09-03T01:17:07Z and the frontend rebuilt the graph,
+  so the bytes at the sanctioned path are now 547,980,224 / 325887cf...3dc6.
+  A record describing bytes that are not on disk is not history, it is a false
+  live claim, so PHASES 1 to 3 were RE-ANCHORED to the artefact actually
+  there and this PART states the loads that measured it. The superseded
+  figures are retained in the sentence above, labelled, and in APPENDIX A,
+  which is the 2026-09-01 load's own console and is left verbatim.
+
+  APPENDIX A and PART 2 ARE NOT RE-ANCHORED, deliberately. APPENDIX A is one
+  load's verbatim console output and PART 2 is a different graph entirely -
+  the all-JAR witness lane, 994,192 methods / 97,292 typeDecls / 45,680
+  files. Editing either would destroy the only record of what those runs
+  observed. Both are labelled at their heads as history of other lanes.
+
+  THREE LOADS, NOT ONE. The AAP requires the graph verified by importCpg with
+  more than zero methods (0.5.1) and its identity re-verified immediately
+  before every load (0.6.4). Three separate JVMs did that on 2026-09-03,
+  each re-computing the size and digest itself before importing, because a
+  count measured once is a count with no corroboration and the three counts
+  are cited in eight published documents.
+
+  load  purpose                     script                  import elapsed
+  ----  --------------------------  ----------------------  --------------
+  1     verification of record      cpg-verify.sc               526,605 ms
+        - the three counts, the floor, the 31-module witness table
+  2     per-witness detail          cpg-witness-detail.sc       557,041 ms
+        - type-decl / method / file counts for each module's witness class
+  3     corroboration              cpg-corrob.sc                545,644 ms
+        - the method breakdown, the file-node census, the probe surface
+
+  Common to all three, each measured inside the child JVM rather than
+  requested of it:
+
+    JDK                 : Temurin 21.0.12.1+1, java.specification.version 21
+                          /opt/blitzy-tools/jdk/jdk-21.0.12.1+1 (JAVA_HOME_21)
+    heap_max_bytes      : 68,719,476,736, measured by Runtime.maxMemory()
+    heap_floor_bytes    : 68,719,476,736  ->  heap_at_or_above true
+    invocation          : JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN
+                          joern --script <script> -J-Xmx64g < /dev/null
+    why JAVA_TOOL_OPTIONS: -J-Xmx sizes the joern LAUNCHER, not the child JVM
+                          that holds the graph. JAVA_TOOL_OPTIONS is the
+                          documented environment override (AAP 0.6.5) that
+                          reaches the child, and it is what made the measured
+                          heap_max_bytes above 68,719,476,736 rather than a
+                          default. Both were passed; the measurement, not the
+                          request, is what is recorded.
+    cwd                 : /tmp/blitzy-harness-scratch/424/wave2-{joern,detail,
+                          corrob} - one per load, each outside the repository,
+                          each created empty, because joern writes an ~800 MB
+                          ./workspace into whatever directory it runs from
+    resolved_target     : /opt/blitzy-harness/cpg/spark.cpg
+    bytes / sha256      : 547980224 /
+                          325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+    identity_matches    : true, in all three, against the write-time record
+                          /opt/blitzy-harness/provision-log/cpg-identity.txt
+
+  THE THREE COUNTS, ONCE PER LOAD - the agreement is the point:
+
+    load  methods    internal   typeDecls  files
+    1     1,398,964  1,308,974    119,860  45,037
+    2     1,398,964  1,308,974    119,860  45,037
+    3     1,398,964  1,308,974    119,860  45,037
+
+  Three independent JVMs, three independent imports of the same bytes, and
+  no count differs. METHODS_GT_ZERO true; METHOD_FLOOR 853,420;
+  METHOD_FLOOR_SATISFIED true (1,398,964 is 1.64x the floor);
+  METHOD_ANCHOR 898,336, exceeded, which is recorded and never halted
+  because the anchor is one-sided (AAP 0.9.3).
+
+================================================================================
+PART 3.1 - PER-WITNESS DETAIL, MEASURED IN THE GRAPH (LOAD 2)
+================================================================================
+
+  PHASE 2 above answers WHETHER each module has an admissible witness, and
+  that answer is a property of the input set, which did not change - so the
+  PHASE 2 verdicts stand as written. This table answers a different
+  question: what the graph actually holds for each of those 31 witnesses.
+  'primary' is the witness module's primary-artifact class count and
+  'exclusive' the count of those classes no other module ships; a module
+  whose exclusive count is 0 is one whose classes are all vendored
+  elsewhere, which is exactly why it has no admissible witness.
+
+  module                             kind                  primary excl  decls methods files
+  ---------------------------------  --------------------  ------- ----  ----- ------- -----
+  common_kvstore                     unique-class               39   38      2       4     1
+  common_network-common              no-admissible-witness     2170    0      3       9     1
+  common_network-shuffle             no-admissible-witness       92    0      3      15     1
+  common_network-yarn                unique-class            11070 6175      2      36     1
+  common_sketch                      unique-class               16   15      2      28     1
+  common_tags                        unique-class               12   11      2       0     1
+  common_unsafe                      unique-class               65   64      2      12     1
+  common_utils                       unique-class              164  163      2      16     1
+  common_utils-java                  no-admissible-witness       40    0      3       3     1
+  common_variant                     unique-class               34   33      2       8     1
+  connector_avro                     unique-class               24   23      2     106     1
+  connector_protobuf                 unique-class              825  825      2      82     1
+  core                               unique-class             5097 5096      2      54     1
+  graphx                             unique-class              132  131      2     120     1
+  launcher                           unique-class               33   32      2      30     1
+  mllib                              unique-class             2646 2645      2      20     1
+  mllib-local                        unique-class               23   22      2      12     1
+  repl                               unique-class                9    8      2      24     1
+  resource-managers_kubernetes_core  unique-class              145  144      2     254     1
+  resource-managers_yarn             unique-class               79   78      2      18     1
+  sql_api                            no-admissible-witness     1203    0      3      90     1
+  sql_catalyst                       unique-class             5333 5332      2      40     1
+  sql_connect_client_jdbc            unique-class                2    2      2      16     1
+  sql_connect_client_jvm             unique-class            12652 4970      2       2     1
+  sql_connect_common                 no-admissible-witness     1879    0      4      28     1
+  sql_connect_server                 unique-class             8050 4153      2       2     1
+  sql_core                           unique-class             3879 3878      2      72     1
+  sql_hive                           unique-class              149  148      2      36     1
+  sql_hive-thriftserver              unique-class              211  210      2     258     1
+  sql_pipelines                      unique-class              285  284      2       0     1
+  streaming                          unique-class              359  358      2      16     1
+
+  witness class per module, in the same order:
+    common_kvstore                     org.apache.spark.util.kvstore.ArrayWrappers
+    common_network-common              org.apache.spark.network.sasl.SaslTimeoutException
+    common_network-shuffle             org.apache.spark.network.shuffle.AppsWithRecoveryDisabled
+    common_network-yarn                org.apache.spark.network.yarn.YarnShuffleService
+    common_sketch                      org.apache.spark.util.sketch.BitArray
+    common_tags                        org.apache.spark.annotation.AlphaComponent
+    common_unsafe                      org.apache.spark.sql.catalyst.expressions.HiveHasher
+    common_utils                       org.apache.spark.BreakingChangeInfo
+    common_utils-java                  org.apache.spark.internal.LogKey
+    common_variant                     org.apache.spark.types.variant.ShreddingUtils
+    connector_avro                     org.apache.spark.sql.avro.AvroDataToCatalyst
+    connector_protobuf                 org.apache.spark.sql.protobuf.CatalystDataToProtobuf
+    core                               org.apache.spark.Aggregator
+    graphx                             org.apache.spark.graphx.Edge
+    launcher                           org.apache.spark.launcher.AbstractAppHandle
+    mllib                              org.apache.spark.ml.Estimator
+    mllib-local                        org.apache.spark.ml.impl.Utils
+    repl                               org.apache.spark.repl.Main
+    resource-managers_kubernetes_core  org.apache.spark.deploy.k8s.Config
+    resource-managers_yarn             org.apache.spark.deploy.yarn.AmIpFilter
+    sql_api                            org.apache.spark.sql.types.YearMonthIntervalType
+    sql_catalyst                       org.apache.spark.sql.catalyst.AliasIdentifier
+    sql_connect_client_jdbc            org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver
+    sql_connect_client_jvm             org.apache.spark.sql.application.ConnectRepl
+    sql_connect_common                 org.apache.spark.connect.proto.ChunkedCachedLocalRelationOrBuilder
+    sql_connect_server                 org.apache.spark.sql.connect.SimpleSparkConnectService
+    sql_core                           org.apache.spark.sql.DataSourceRegistration
+    sql_hive                           org.apache.spark.sql.hive.DeferredObjectAdapter
+    sql_hive-thriftserver              org.apache.spark.sql.hive.thriftserver.ArrayFetchIterator
+    sql_pipelines                      org.apache.spark.sql.pipelines.AnalysisWarning
+    streaming                          org.apache.spark.status.api.v1.streaming.ApiStreamingApp
+
+  WHAT THIS ESTABLISHES AND WHAT IT DOES NOT. Every one of the 31 witnesses
+  is PRESENT: decls is 2 or more for all 31 and 0 for none, so
+  WITNESS_ABSENT_COUNT is 0. Presence is not coverage for the five
+  no-admissible-witness modules - their witness classes are in the graph but
+  are shipped by another module too, so the class cannot testify that THIS
+  module's code arrived. Those five are corroboration only and PHASE 2
+  records no verdict for them; the per-module vendoring measurement that
+  establishes why is owned by
+  harness/artifacts/logs/cpg-module-coverage.json.
+
+  Two witnesses show methods=0 - common_tags' AlphaComponent and
+  sql_pipelines' AnalysisWarning. Both are annotation or marker types with
+  no method bodies to compile, so a type declaration with no methods is the
+  correct observation for them and not a coverage shortfall; both modules'
+  verdicts rest on the type declaration being exclusive, which it is.
+
+================================================================================
+PART 3.2 - THE METHOD AND FILE-NODE BREAKDOWN (LOAD 3)
+================================================================================
+
+  methods, total                          : 1,398,964
+  methods, internal (with a body)         : 1,308,974
+  methods, external (declaration only)    :    89,990
+  methods in org.apache.spark.*           :   927,304  (66.29% of all methods)
+  typeDecls                               :   119,860
+  file nodes, total                       :    45,037
+  file nodes ending .class                :    44,811
+  file nodes ending pom.properties        :       102
+  file nodes containing META-INF          :       216
+
+  internal + external = 1,308,974 + 89,990 = 1,398,964, which is the method
+  count, so no method is unaccounted for. The 102 pom.properties nodes are
+  the Maven coordinate nodes PHASE 2's weaker-witness rule reasons about;
+  they are file nodes rather than type declarations, which is why a
+  coordinate node is a weaker witness than a class.
+
+================================================================================
+PART 3.3 - THE PROBE SURFACE, AND WHY createDriver LOOKED ABSENT (LOADS 2, 3)
+================================================================================
+
+  The AAP names a specific deploy surface for the Stage 5 probe (0.2.1): a
+  createDriver call in Master.scala at lines 417 and 1130 against a
+  definition at 1356, the privileged sink in worker/DriverRunner.scala, and
+  the remote entry point in rest/StandaloneRestServer.scala. Measured:
+
+    org.apache.spark.deploy.master.Master              typeDecls=2  methods=624
+    org.apache.spark.deploy.worker.DriverRunner        typeDecls=2  methods=162
+    org.apache.spark.deploy.rest.StandaloneRestServer  typeDecls=2  methods= 26
+    org.apache.spark.deploy.worker.ProcessBuilderLike  typeDecls=2  methods=  6
+    org.apache.spark.SecurityManager                   typeDecls=2  methods=252
+    org.apache.spark.storage.DiskStore                 typeDecls=2  methods=114
+
+  A SEARCH FOR THE SOURCE-LEVEL NAME 'createDriver' RETURNS NOTHING, AND
+  THAT IS NOT AN ABSENCE. Scala 2.13 name-mangles a private method into an
+  owner-qualified form, so what the graph holds is:
+
+    method name : org$apache$spark$deploy$master$Master$$createDriver
+    full name   : org.apache.spark.deploy.master.Master.
+                  org$apache$spark$deploy$master$Master$$createDriver:
+                  org.apache.spark.deploy.master.DriverInfo
+                  (org.apache.spark.deploy.DriverDescription)
+
+  Its call sites, counted by the mangled name: 0. The AAP's two source
+  lines are real calls in Scala source, but this graph is built from
+  bytecode by jimple2cpg, and the intra-class calls to a private mangled
+  method are not reachable as CALL nodes keyed on that name here. This is
+  the measured reason the Stage 5 queries key on what the graph contains -
+  the RPC boundary B-rpc-LaunchDriver at Master.scala:1367 - rather than on
+  a source-level method name, and it is why every probe reports
+  distinct_routes 0 with expected_spurious_route_absent true rather than
+  reporting a route it could not have found. Recorded as a frontend and
+  language-mangling property, not as a query defect and not as a finding
+  about Spark.
+
+  THE CONNECT-SHIMS COLLISION, MEASURED RATHER THAN INFERRED. The AAP (0.5.1)
+  names sql/connect/shims as the module whose stub classes collide with
+  core's and the SQL modules', and directs that where a collision matters it
+  be resolved by querying the graph for the class rather than by inferring a
+  winner. Queried:
+
+    org.apache.spark.SparkConf     typeDecls=2  methods=  298
+    org.apache.spark.SparkContext  typeDecls=2  methods=1,100
+    org.apache.spark.rdd.RDD       typeDecls=2  methods=1,022
+
+  All three are present with full method bodies, so the definition that
+  survived the frontend's replacement is the real one and not the shim stub -
+  a stub SparkContext does not carry 1,100 methods. Per-class provenance for
+  an overwritten class is still not measurable from this frontend's output,
+  and that limitation is stated wherever the overwrite count is cited; what
+  is measurable, and is measured here, is what the graph ended up holding.
+
+================================================================================
+PART 3.4 - THE ENVIRONMENT-RECORD CONTRADICTION, RESOLVED
+================================================================================
+
+  PROVENANCE above records that harness/ENVIRONMENT.md described a graph
+  that was not on disk, and that the disagreement was a gate halt. As of
+  2026-09-03 it is RESOLVED, by re-anchoring the record to the artefact
+  rather than the other way round: ENVIRONMENT.md section 7 and
+  harness/artifacts/MANIFEST.json .cpg now state 547,980,224 /
+  325887cf...3dc6, the values the graph on disk and provisioning's own
+  write-time records /opt/blitzy-harness/provision-log/cpg-identity.txt and
+  cpg-record.txt already agreed on. The superseded identities are retained
+  in ENVIRONMENT.md's labelled supersession tables, never as live claims.
+
+  harness/lib/preflight_graph_identity.py --check-only consequently exits 0
+  with VERDICT: PASS, adjudicating 1,398,964 methods as agreed by two
+  records of account and reporting FLOOR SATISFIED against 853,420; before
+  the re-anchor it exited 77 VERDICT: HALT naming ENVIRONMENT.md section 7
+  as the sole dissenting record, and ./harness/bin/run-joern.sh exited 78
+  CONFIGURATION FAULT without loading anything. Stage 3 then ran to
+  completion on 2026-09-03: exit 0 in 596.83 s, child JVM measured
+  externally by jcmd at MaxHeapSize 68,719,476,736 on JDK 21, artefact
+  harness/artifacts/raw/joern.json at 353,048 bytes, sha256 f7f5f60e...c926,
+  690 findings over all six baked queries with bound_reached false
+  throughout. That run's own record is
+  harness/artifacts/logs/runner-metadata.json.
+
+VERIFY-PART3-COMPLETE
 
 ================================================================================
 END - cpg-verify.log

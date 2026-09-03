@@ -2,10 +2,10 @@
   "schema": "joern-probe-publication/1.0.0",
   "document": "harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.publication.json",
   "query_id": "03-parameterized-handler-sink-pairs",
-  "member_set_id": "b0b9e4d66582c84fa0de94bf6e66c646",
+  "member_set_id": "6313d5848fd13db48cdfc808f006e23c",
   "member_set_id_derivation": "sha256 over each content member's target filename and sha256, NUL-separated within a member and newline-separated between members, in published order, truncated to 32 hex characters. Derived from member BYTES, so it changes if any member changes, is missing, or came from another generation",
   "member_count": 3,
-  "publication_id": "89c38f6d823f564b15e025f74291916237b0cbe1e3f1f939fa8c93eefa904e69",
+  "publication_id": "58d6c2734d126da37eb974ffda7ae3084e30705d3c7d57167d536205f1548c0f",
   "commit_protocol": "Every content member is staged, fsynced and measured from the disk; this manifest is staged after all of them; every content member is then renamed onto its target; and this manifest is renamed LAST. Its presence is therefore the completion signal for the set, and a member on disk disagreeing with the digest recorded here means the set is not one generation",
   "required_by_consumers": "REQUIRED. The producer re-measures every member named here immediately after publishing and stops the run on any disagreement, so a manifest that nothing checks cannot occur. A downstream consumer must do the same before treating the set as one generation",
   "self_digest": "absent by construction: a manifest cannot carry its own digest. Its own identity is published in the run record's per-file manifest",
@@ -13,20 +13,20 @@
     {
       "role": "03-parameterized-handler-sink-pairs.json",
       "path": "queries/joern/results/03-parameterized-handler-sink-pairs.json",
-      "bytes": 142174,
-      "sha256": "b805202caf0f803f52843cf2342b56c84870b802f370d6777e5c06fd9923f6f2"
+      "bytes": 142173,
+      "sha256": "9b965f26c3e4aed77a2968239f7403a2074ba2f35bfd46b84804660152d6095a"
     },
     {
       "role": "03-parameterized-handler-sink-pairs.md",
       "path": "queries/joern/results/03-parameterized-handler-sink-pairs.md",
-      "bytes": 65872,
-      "sha256": "31e1c4f21314c17a8c20765733f2244aca17d93a1f376dfa5d091ea01ced9018"
+      "bytes": 65870,
+      "sha256": "1232ca7704e6f7881b32c81dee0e4384bd1d75fa2cf1e8d20fa61472964fd747"
     },
     {
       "role": "probe-03-parameterized-handler-sink-pairs.log",
       "path": "harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log",
-      "bytes": 31790,
-      "sha256": "098125d087c0d48f85e98def449c4a2dc3bf9149fa1c17379e4fdcfa3b26c806"
+      "bytes": 31791,
+      "sha256": "d4aee84bee60f86f72cdcec9a08a8e6f05933d93f23af91c37ca6662dfd59351"
     }
   ]
 }

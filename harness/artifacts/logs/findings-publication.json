@@ -1,9 +1,9 @@
 {
   "schema": "findings-publication-manifest/1.0.0",
   "document": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/findings-publication.json",
-  "member_set_id": "7cf07ad9a5f5508383e126dabd8bfcd3",
+  "member_set_id": "c7e30effc32b2254bf042ac263378de8",
   "member_set_id_method": "sha256 over each published member's role and content sha256 -- NUL-separated within a member, newline-separated between members, in the order the manifest lists them -- truncated to 32 lowercase hex characters. Computable by a consumer from nothing but the files on disk, which is what makes it a completion record: a set missing a member, or assembled from two generations, yields a value matching neither generation's manifest.",
-  "publication_id": "1cbb9d77d199323c62d9da1354f6583b",
+  "publication_id": "de9ba4ad9855fd92d439de4da7b159d3",
   "publication_id_method": "sha256 over the UTF-8 text 'findings-publication/1.0.0\\n' followed by one '<role>\\t<sha256>\\n' line per member in ascending role order, truncated to its first 32 hex characters. Content-derived, so both members of one publication carry it, two runs over identical rows produce the same value, and a consumer holding the two files can recompute it: a mixed generation yields an identifier that matches neither recorded value.",
   "member_count": 2,
   "commit_protocol": "Every content member is staged in its target's own directory, fsynced, and measured by reading the staged bytes back through a descriptor bound to the inode they were written into. This manifest is then staged the same way. Every content member is renamed onto its target, and this manifest is renamed LAST. Staging before the first rename closes the window before the renames; N renames are N atomic operations rather than one, and POSIX offers no N-way atomic rename, so the window BETWEEN them is closed by this record instead: its presence means every member it names is in place.",
@@ -13,14 +13,14 @@
     {
       "role": "findings_json",
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
-      "bytes": 4408640,
-      "sha256": "d4e28c823fd1e76c2158130dc941762e0c6cf23424c0c990c930cc84ece6fc54"
+      "bytes": 4407339,
+      "sha256": "339732ed19fad926cb0d6f3da769bc073c5d61585cf82cbefc9c2d0080d8438f"
     },
     {
       "role": "findings_csv",
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
-      "bytes": 2081618,
-      "sha256": "9f646532494fcba3ad95a8e10f15f77957b9f16bea0b486b513e2a830f5445e6"
+      "bytes": 2081058,
+      "sha256": "895d250f120894dcb51ab3e8a006e1ee3bcb1cb2f23a54f343fdfb3069983657"
     }
   ]
 }

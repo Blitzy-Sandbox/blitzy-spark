@@ -611,10 +611,104 @@
     "path": "harness/artifacts/logs/joern.runner-console.log",
     "bytes": 1700,
     "sha256": "47a9d744fb9045a5c981a413ab00a642243be27aa7d828f1c30a88492dc0e266"
+   },
+   "superseded_on_2026_09_03": {
+    "verdict": "SUPERSEDED as the Stage 3 invocation of record. This entry remains the true ledger of the 2026-09-01T14:25:10Z invocation in lane w-013 and of no other.",
+    "why": "QA Issue 5 (CRITICAL): provisioning rebuilt the graph, so the 541,309,809 / 4616845a...4730c7 identity this entry checked before and after its load is not the identity of any graph on this host. The graph now at the sanctioned path is 547,980,224 / 325887cf...3dc6, and Stage 3 was re-run against it so the dataset's joern rows come from bytes this checkout can point at.",
+    "the_invocation_that_replaced_it": {
+     "when": "2026-09-03T09:07:47Z to 09:17:43Z, 596.83 s, exit 0",
+     "runner": "./harness/bin/run-joern.sh, restored to its provisioned bytes (3,380 / 32dd647a...) and invoked directly with no arguments",
+     "graph_identity_checked_before_the_load": {
+      "bytes": 547980224,
+      "sha256": "325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6",
+      "by": "harness/lib/preflight_graph_identity.py, VERDICT: PASS, published to harness/artifacts/logs/joern-preflight.log"
+     },
+     "artifact": {
+      "path": "harness/artifacts/raw/joern.json",
+      "bytes": 353048,
+      "sha256": "f7f5f60e37aacdbf58ca2bf073c0682efeb81e256a516576b12d55aea8edc926",
+      "findings": 690
+     },
+     "child_jvm": {
+      "XX_MaxHeapSize": 68719476736,
+      "jdk_major": 21,
+      "measured_by": "external jcmd sampling of the forked child, since -J-Xmx reaches only the launcher"
+     },
+     "full_record": "harness/artifacts/logs/runner-metadata.json, tools.joern.stage3_invocation_2026_09_03"
+    },
+    "files_this_entry_names_that_were_overwritten_in_place": {
+     "what_a_reader_must_not_be_misled_by": "This entry binds the artifact, the two streams and the .status file by byte size and sha256 as they stood immediately after the 2026-09-01T14:25:10Z invocation returned. Every one of those is a FIXED path that the runner rewrites on each invocation, so the 2026-09-03T09:07:47Z re-run wrote over all four in place. The four pairs recorded above are therefore the true ledger of the 2026-09-01 invocation AND they describe content that is no longer on disk. They are left exactly as measured - rewriting them would replace one invocation's measurement with another's inside an entry that identifies itself by date - and the current measurements are given here so that a reader comparing this ledger against the tree sees one measurement per generation rather than one contradiction.",
+     "overwritten": [
+      {
+       "path": "harness/artifacts/logs/joern.status",
+       "this_entry_records": {
+        "bytes": 241,
+        "sha256": "cd94f62129b07e851b35e933e49389231e9b3374527c19cd6f5f983aa8204c05"
+       },
+       "on_disk_now": {
+        "bytes": 235,
+        "sha256": "22c166c5a9a58c378da5df3757c53fa43d232ac2970fb1df50e6bd35e6db75bc"
+       },
+       "whose_content_that_is": "the 2026-09-03T09:07:47Z invocation's trailer - its own text reads elapsed_seconds=596, artifact_bytes=353048 and a repository root of ..._a424a0, none of which the 2026-09-01 invocation could have written"
+      },
+      {
+       "path": "harness/artifacts/logs/joern.stderr.log",
+       "this_entry_records": {
+        "bytes": 699,
+        "sha256": "1344952be0dea952067d3225a7e4350f654f61a39451a60f754b2092c4b514bd"
+       },
+       "on_disk_now": {
+        "bytes": 768,
+        "sha256": "4d6e22346f23ecab5530985b6de6978068472c966211ce14600d49d963bfeca2"
+       },
+       "whose_content_that_is": "the 2026-09-03T09:07:47Z invocation's stderr - it names /tmp/blitzy-harness-scratch/424/joern-run as the working copy's location and carries the JAVA_TOOL_OPTIONS: -Xmx64g notices that invocation's heap override produced"
+      },
+      {
+       "path": "harness/artifacts/logs/joern.stdout.log",
+       "this_entry_records": {
+        "bytes": 14911,
+        "sha256": "3c22ef95664acf10bfdc5225828e17d17eeb1bb513e582f339a0fa67976c19ae"
+       },
+       "on_disk_now": {
+        "bytes": 13939,
+        "sha256": "9c6b1167f14cf78eb2a9e64741e70821a2f598eb185801b031e6968057904522"
+       },
+       "whose_content_that_is": "the 2026-09-03T09:07:47Z invocation's stdout - its importCpg line names /opt/blitzy-harness/cpg/spark.cpg as loaded by that run"
+      },
+      {
+       "path": "harness/artifacts/raw/joern.json",
+       "this_entry_records": {
+        "bytes": 354817,
+        "sha256": "bb73a8c657fd31ddf31dc8081f248103e42e2db4fb1b000cca447682c43d8014"
+       },
+       "on_disk_now": {
+        "bytes": 353048,
+        "sha256": "f7f5f60e37aacdbf58ca2bf073c0682efeb81e256a516576b12d55aea8edc926"
+       },
+       "whose_content_that_is": "the 2026-09-03T09:07:47Z invocation's artifact, 690 findings, already recorded above under the_invocation_that_replaced_it.artifact. This is the one raw artifact in the tree that a runner rewrote after this ledger was written"
+      }
+     ],
+     "not_overwritten": {
+      "path": "harness/artifacts/logs/joern.runner-console.log",
+      "bytes": 1700,
+      "sha256": "47a9d744fb9045a5c981a413ab00a642243be27aa7d828f1c30a88492dc0e266",
+      "verdict": "UNCHANGED - this file still holds the 2026-09-01 console verbatim (its header reads run_id=w013-20260901T132807Z clone_index=13 and its body records cpg bytes 541309809, elapsed_seconds 974), because it is written by this ledger's own sequence script rather than by the runner, and that script was not re-run. Every line citation into it therefore still resolves to the content the citing document describes."
+     },
+     "how_the_current_pairs_were_measured": "stat -c%s and sha256sum over each path in this checkout, on 2026-09-03 after the re-run returned. No stream was edited to produce this node: the three overwritten streams and the artifact are the re-run's own verbatim output, and the pairs above are readings of them.",
+     "scope_of_this_overwrite": "joern only. The other eight invocations in this ledger were not re-run, so their artifact, stream and status pairs still describe the bytes at those paths."
+    },
+    "what_did_not_change": "The runner, its baked query set, the bound of 2000, the artifact path and the envelope shape are all identical, so the 690 findings are comparable with this entry's 693 finding for finding. The difference is the graph, not the runner."
    }
   }
  ],
  "finished_at_utc": "2026-09-01T14:41:25Z",
  "serialization": "Strictly serial: invocation N+1 started only after invocation N returned, from one script in one process, in one clone. The started/ended stamps are monotonic and non-overlapping, no orchestrator was used, and no runner was invoked more than once.",
- "evidence": "Each invocation's console output is retained verbatim at harness/artifacts/logs/<tool>.runner-console.log, and the runner's artifact, streams and .status are measured here by byte size and sha256 immediately after the invocation returned \u2014 which is what binds those bytes to that invocation and makes a later substitution detectable."
+ "evidence": "Each invocation's console output is retained verbatim at harness/artifacts/logs/<tool>.runner-console.log, and the runner's artifact, streams and .status are measured here by byte size and sha256 immediately after the invocation returned — which is what binds those bytes to that invocation and makes a later substitution detectable.",
+ "joern_reinvocation_2026_09_03": {
+  "why_this_node_exists": "This ledger records one lane's Stage 3 sequence. Its joern entry is now superseded and says so in place; this node makes the supersession findable from the top level rather than only from inside the entry.",
+  "superseded_entry": "invocations[].tool == 'joern', started 2026-09-01T14:25:10Z in lane w-013",
+  "superseding_invocation": "2026-09-03T09:07:47Z in lane a424a0, recorded in full at harness/artifacts/logs/runner-metadata.json tools.joern.stage3_invocation_2026_09_03",
+  "the_other_eight_invocations": "Untouched and unsuperseded. Their artifacts were not rebuilt, their identities do not depend on the graph, and their figures remain this ledger's own. Only joern reads the graph, so only joern needed re-running.",
+  "stream_files_overwritten_in_place": "The re-run wrote over the fixed paths the superseded entry names: harness/artifacts/raw/joern.json and harness/artifacts/logs/joern.{stdout.log,stderr.log,status}. The entry's four pairs are retained as that invocation's ledger and the current measurements are recorded beside them at invocations[joern].superseded_on_2026_09_03.files_this_entry_names_that_were_overwritten_in_place, so no reader is left holding two live values for one measurement. harness/artifacts/logs/joern.runner-console.log was NOT overwritten and still holds the 2026-09-01 console."
+ }
 }

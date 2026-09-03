@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
-"""Pre-load graph-identity gate: refuse to load a graph the write-time record does not describe.
+"""Pre-load graph gate: refuse to load a graph the records of account do not describe, and
+refuse to load one whose method count is below the floor AAP 0.9.2 stops the run for.
 
 WHY THIS EXISTS AS A SEPARATE, EXECUTABLE STEP
 ==============================================
 AAP 0.8.2 requires the graph's identity re-verified immediately before every load, and
 0.6.4 requires each check logged, because "a load against different bytes than the record
-describes produces conclusions about a graph nobody has".
+describes produces conclusions about a graph nobody has". AAP 0.9.2 additionally stops the
+run on "a method count below 853,420", which is the truncation signature and which no
+other executable in this harness checks.
 
-The measurement and the comparison are two different acts, and the Stage 3 path used to
-perform only the first:
+The measurement and the comparison are two different acts, and the Stage 3 path performs
+only the first:
 
 * ``harness/bin/run-joern.sh`` resolved its input and PRINTED the path, the byte size and
   the digest -- and then invoked Joern. Printing a value is not checking it.
@@ -20,16 +23,29 @@ record of account by provenance and returns a single adjudicated status a caller
 refuse on -- logic that belongs in one place read by every load path rather than
 duplicated in each.
 
-**The Stage 3 runner now reads it.** ``harness/bin/run-joern.sh`` runs this module in its
-``--check-only`` form against the ``HARNESS_CPG`` it is about to open, echoes the whole
-report to its own stdout, keeps a copy at
-``$HARNESS_LOG_DIR/joern.preload-identity.log``, and exits 78 without loading anything on
-any non-zero status. So the canonical direct no-argument invocation is bound by this gate
-structurally rather than by convention: the comparison is upstream of ``importCpg`` on the
-path Stage 3 actually takes. ``harness/lib/run-joern-gated.sh`` remains a valid, now
-redundant, belt-and-braces caller that performs the same comparison one step earlier. The
-EXIT STATUS section below names both and says which route the Stage 3 invocation on record
-actually took.
+**WHO READS THIS STATUS, STATED AS IT IS RATHER THAN AS IT WOULD BE CONVENIENT.**
+``harness/bin/run-joern.sh`` does NOT read it. The runner is provisioned and AAP 0.6.1
+marks every ``harness/bin/`` entry REFERENCE, so it resolves its input, prints the path,
+the byte size and the digest at its lines 112-113, and invokes Joern. Printing a value is
+not checking it. An earlier generation of this run did edit the runner to call this gate;
+that edit was a prohibited post-provisioning write to a REFERENCE file and has been
+reverted, so the claim that "the canonical direct no-argument invocation is bound by this
+gate structurally" is no longer true and is not made here. Closing the comparison inside
+the runner is a PROVISIONING change, and the exact patch is recorded in
+``oss-scan-results/run-record.md`` rather than applied from a clone.
+
+What does bind it, and all that binds it:
+
+* ``harness/lib/run-joern-gated.sh``, the committed gated path, which runs this module as
+  step 2 of 4 and has no branch that reaches the runner after a non-zero status;
+* the run of record, which runs this module and publishes its report to
+  ``harness/artifacts/logs/joern-preflight.log`` immediately before the Stage 3 load, so
+  the ordering is evidenced by that file's ``Checked at`` stamp rather than asserted.
+
+A direct ``./harness/bin/run-joern.sh`` therefore remains unbound by this status. That
+residual is a property of a provisioning a clone may not edit, and it is reported here and
+in ``oss-scan-results/run-record.md`` rather than papered over. The EXIT STATUS section
+below names every reader.
 
 WHAT IT COMPARES, AND WHY BOTH VALUES
 =====================================
@@ -81,25 +97,36 @@ to them -- it is the environment's own claim about the same graph, and it is rea
 case rather than only when the others are missing, because a claim nobody compares is not
 a record. Concretely, in this checkout:
 
-* the provisioning record beside the graph states 541,309,809 bytes /
-  ``4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7``, which is what the
+* the provisioning record beside the graph states 547,980,224 bytes /
+  ``325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6``, which is what the
   bytes on disk measure;
-* ``harness/ENVIRONMENT.md`` section 7 DECLARES 541,255,894 bytes /
-  ``26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`` for the very same
-  ``/opt/blitzy-harness/cpg/spark.cpg`` path;
+* ``harness/ENVIRONMENT.md`` section 7 DECLARES the same 547,980,224 /
+  ``325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`` for the same
+  ``/opt/blitzy-harness/cpg/spark.cpg`` path, having been re-anchored to this graph's
+  write-time record of account on 2026-09-03;
 
-so the two records disagree, and this gate therefore HALTS where before it passed. That
-outcome is intended, not a regression: the graph on disk is not the graph the authoritative
-environment record describes, one of the two is wrong about 541 MB of provisioned state,
-and "fail closed" means the gate declines to pick the one that happens to match the bytes
-in front of it. AAP 0.1.3's fourth case is the authority -- an observable fact
-contradicting the environment record on a field the expected-values table does not anchor
-is recorded with BOTH values and the run stops.
+so the records AGREE and this gate passes. It has not always: two superseded generations
+of the graph are named here because a reader comparing an older report against this one
+needs to know which bytes each describes, and because a record re-anchored to the wrong
+generation is exactly what this candidate exists to catch.
 
-Resolving it is a PROVISIONING act, not something a clone may do: the graph and its record
-must be replaced together so that one identity describes one set of bytes. Neither
-``harness/ENVIRONMENT.md`` (REFERENCE under AAP 0.6.1) nor the shared graph may be edited
-from here, so this gate's job ends at refusing and saying exactly what disagrees.
+* SUPERSEDED, 2026-09-01 generation: 541,309,809 /
+  ``4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7``.
+* SUPERSEDED, 2026-08-24 generation: 541,255,894 /
+  ``26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc``.
+
+While section 7 still declared the 2026-08-24 pair against a disk holding the 2026-09-01
+pair, this gate HALTED where before it had passed -- the correct outcome, and the reason
+this candidate is read unconditionally. "Fail closed" means the gate declines to pick the
+record that happens to match the bytes in front of it. AAP 0.1.3's fourth case is the
+authority -- an observable fact contradicting the environment record on a field the
+expected-values table does not anchor is recorded with BOTH values and the run stops.
+
+Resolving such a disagreement is a PROVISIONING act, not something a clone may do: the
+graph and its record must be replaced together so that one identity describes one set of
+bytes. Neither ``harness/ENVIRONMENT.md`` (REFERENCE under AAP 0.6.1) nor the shared graph
+may be edited from here, so this gate's job ends at refusing and saying exactly what
+disagrees.
 
 A section 7 that cannot be parsed is its own named CONFIGURATION FAULT (exit 78) rather
 than a silent agreement: "the record could not be read" and "the record agrees" are
@@ -109,6 +136,54 @@ that makes every later verdict meaningless.
 Both values are recomputed from the bytes on disk and both must match. Size alone is a
 weak test -- a graph rebuilt over a different input set can land on the same length --
 and a digest alone leaves a truncated read undetected as a size discrepancy.
+
+THE METHOD-COUNT FLOOR, THE SECOND QUESTION THIS GATE ANSWERS
+=============================================================
+Identity and completeness are different facts, and a graph can satisfy the first while
+failing the second: a truncated graph persisted once has a perfectly consistent identity
+in every record that describes it. AAP 0.9.2 therefore names "a method count below
+853,420" among the conditions that STOP the run -- "fewer methods from more JARs is the
+truncation signature, and a truncated graph's silence is indistinguishable from a clean
+result" -- and AAP 0.9.1 requires the count reported against its expected value at the
+verification load.
+
+Before this check existed the floor was stated in seven result documents and enforced in
+no code: ``853420`` occurred in zero executable files, so the one mandated halt whose
+signature is silence was the one condition nothing could detect. It is enforced here, in
+the gate that already adjudicates the graph's record of account, because the records that
+state the identity are the records that state the count and reading them twice in two
+places is how the two answers start to disagree.
+
+``METHOD_COUNT_FLOOR`` is authored as a constant of this module for the same reason
+``preflight_scan_target.PINNED_SPARK_COMMIT`` is: a threshold a caller can move is not a
+threshold. The claim sources are exactly the three records of account named above, and
+nothing else -- they have just been adjudicated to describe ONE set of bytes, so a count
+any of them states is a count about the graph that is about to be loaded. A count from a
+stage log describing a DIFFERENT identity is a count about a different graph;
+``harness/artifacts/logs/cpg-verify.log`` is the live instance, recording 1,396,899
+methods for the superseded 541,309,809-byte generation, and admitting it here would
+manufacture a disagreement out of two correct measurements.
+
+Four outcomes, each decided rather than deferred:
+
+* AT OR ABOVE the floor: satisfied, and the report states it as ``1,398,964 >= 853,420``.
+  The bound is ONE-SIDED. AAP 0.9.3 makes a count above the 898,336 anchor a RECORDED
+  DIFFERENCE and never a halt -- the anchor was measured over 32 JAR producers where a
+  full reactor contributes 38, and more JARs cannot yield fewer methods -- so no upper
+  comparison is performed, and anyone tempted to "fix" this into a window would be adding
+  a halt for succeeding.
+* BELOW the floor: fatal, at the same ``HALT`` status an identity mismatch carries, naming
+  the observed count, the floor and the shortfall. The input set is never trimmed to move
+  a count.
+* NO record states a count: fatal. An unestablished count is not a satisfied floor, and a
+  gate that read silence as agreement would report the graph as checked while checking
+  nothing.
+* Two records state DIFFERENT counts: fatal, with every claim recorded and none preferred
+  -- handled exactly like an identity disagreement, and for the same reason. Resolving it
+  is a provisioning act: the graph and every record of its counts are replaced together.
+
+All four are measured under ``--check-only`` as well; what that flag suppresses is the
+write, never a measurement.
 
 THE RUNNER'S ACTUAL INPUT, NOT A NAME THAT RESEMBLES IT
 ======================================================
@@ -155,52 +230,58 @@ record showing the gate preceded the Stage 3 invocation -- its ``Checked at`` st
 module to audit it silently overwrites the ordering evidence for the run of record, which
 was observed happening during this run's own final validation.
 
-``--check-only`` performs every measurement and prints the whole report but writes
-nothing. That is the form ``harness/bin/run-joern.sh`` calls, for two reasons: the
-runner keeps its own copy of the report under ``$HARNESS_LOG_DIR``, so it needs no write
-here, and a runner that rewrote a committed canonical deliverable would stop being
-hermetic the moment a caller redirected ``HARNESS_LOG_DIR``. Use the default form only
-when a caller genuinely wants that durable record replaced. The negative test needs the
-writing form, so it saves that record first and restores it afterwards, asserting byte
-equality.
+``--check-only`` performs every measurement -- the identity comparison and the
+method-count floor alike -- and prints the whole report, but writes nothing. That is the
+form every audit and every validation run must use: the durable record belongs to the run
+of record, whose gate invocation precedes the Stage 3 load, and an audit run that replaced
+it would destroy the very ordering it was checking. Use the default form only when a caller
+genuinely wants that durable record replaced -- ``harness/lib/run-joern-gated.sh`` does,
+at step 2 of 4, because for an invocation routed through it the gate's report IS that
+invocation's ordering evidence. The negative test needs the writing form too, so it saves
+the record first and restores it afterwards, asserting byte equality.
 
 EXIT STATUS, AND THE CALLERS THAT MAKE IT BINDING
 =================================================
 ``0``  every check passed; the caller may invoke the runner.
-``77`` a fatal mismatch or a missing prerequisite -- including two records of account
-       that disagree. The caller MUST NOT invoke the runner. 77 rather than 1 so a caller
-       cannot confuse it with an ordinary error, and distinct from the runners' own 64
-       (bad argument) so the two are never conflated in a log.
+``77`` a fatal mismatch or a missing prerequisite -- including two records of account that
+       disagree about the identity, a method count below AAP 0.9.2's floor, a method count
+       no record establishes, and two records that disagree about the count. The caller
+       MUST NOT invoke the runner. 77 rather than 1 so a caller cannot confuse it with an
+       ordinary error, and distinct from the runners' own 64 (bad argument) so the two are
+       never conflated in a log.
 ``78`` a CONFIGURATION FAULT: a record of account exists but could not be read, which is
        ``scope.sh``'s ``scope_fail`` status for the same class of condition. Today the one
        such condition is a ``harness/ENVIRONMENT.md`` whose section 7 is absent,
        unparsable or ambiguous. The caller MUST NOT invoke the runner either way; the
        distinct status exists because "correct the record" and "the graph is not the
-       recorded graph" send a reader to different places.
+       recorded graph" send a reader to different places. The floor's failures are
+       deliberately NOT split across the two statuses: for a floor, "the record could not
+       be read" and "the count is not established" are the same fact, and AAP 0.9.2 makes
+       an unsatisfied floor a stop rather than a document to correct.
 
-An exit status only binds something that reads it, so the readers are committed alongside
-it. There are two, and the first is the one that matters:
+An exit status only binds something that reads it, so the readers are named rather than
+assumed. There are two, and neither is the runner:
 
-* ``harness/bin/run-joern.sh``, the canonical Stage 3 runner, invoked directly with no
-  arguments as AAP 0.8.1 requires. It runs this module ``--check-only`` after printing
-  its input's identity and before ``rm -f`` on its artifact or any ``joern`` invocation,
-  and maps a non-zero status to its own configuration fault (78) with the gate's report
-  echoed to its console and copied to ``$HARNESS_LOG_DIR/joern.preload-identity.log``.
-  Nothing is loaded and no artifact is written or removed on a refusal.
-* ``harness/lib/run-joern-gated.sh``, a committed gated path that sources ``env.sh``,
-  runs this module against the effective ``HARNESS_CPG`` and reaches the runner only on
-  0 -- one route through it, no branch that invokes Joern after a non-zero gate. Since
-  the runner gained its own check this wrapper is redundant rather than load-bearing: an
-  invocation routed through it is adjudicated twice, by two independent readings of this
-  same gate.
+* ``harness/lib/run-joern-gated.sh``, a committed gated path that sources ``env.sh``, runs
+  this module against the effective ``HARNESS_CPG`` as step 2 of 4, and reaches the runner
+  only on 0 -- one route through it, no branch that invokes Joern after a non-zero gate.
+* the run of record, which runs this module and publishes its report to
+  ``harness/artifacts/logs/joern-preflight.log`` immediately before the Stage 3 load. That
+  file's ``Checked at`` stamp is the ordering evidence, which is why an audit run must use
+  ``--check-only``.
 
-The invocation on record predates the runner's self-binding and took the direct route:
+``harness/bin/run-joern.sh`` is not a reader. It recomputes and PRINTS its input's size and
+digest at its lines 112-113 and then invokes Joern, and it is REFERENCE under AAP 0.6.1, so
+the comparison cannot be moved inside it from a clone: that is a provisioning change, and
+the patch is recorded in ``oss-scan-results/run-record.md``. A direct
+``./harness/bin/run-joern.sh`` is consequently NOT bound by this status, which is the
+residual a reader of this module needs to know about rather than discover.
+
+The Stage 3 invocation on record took that direct route --
 ``argv=["./harness/bin/run-joern.sh"]`` at line 3 of
-``harness/artifacts/logs/joern.runner-console.log``, so the wrapper's gate was not
-exercised for that load and its contemporaneous identity evidence is the runner's own
-recompute, printed rather than compared. That is the gap the runner's own gate closes for
-every subsequent direct invocation; the wrapper's header records the same history from its
-side.
+``harness/artifacts/logs/joern.runner-console.log`` -- so its contemporaneous identity
+evidence is the runner's own recompute, printed rather than compared, and the comparison
+for that load is this gate's separately published report.
 
 The negative test proving both directions is preserved verbatim beside this module's own
 output, at ``harness/artifacts/logs/joern-preflight-negative-test.log``: it drives the
@@ -239,6 +320,24 @@ _BLOCK: Final[int] = 1 << 20
 #: DIFFERENT section can never be read in its place.
 ENVIRONMENT_RECORD: Final[str] = "harness/ENVIRONMENT.md"
 GRAPH_SECTION_NUMBER: Final[str] = "7"
+
+#: AAP 0.9.2's method-count floor: "a method count below 853,420" is named among the
+#: conditions that STOP the run, because "fewer methods from more JARs is the truncation
+#: signature, and a truncated graph's silence is indistinguishable from a clean result".
+#: Authored as a constant of THIS module rather than read from a document, for the same
+#: reason PINNED_SPARK_COMMIT is authored in preflight_scan_target.py: a threshold a
+#: caller can move is not a threshold. Seven result documents state this number in prose
+#: and none of them is executable; this is where it is enforced.
+METHOD_COUNT_FLOOR: Final[int] = 853_420
+
+#: The measured anchor the floor is derived from (AAP 0.2.1: 853,420 is the 5% lower bound
+#: around 898,336). Carried so the report can say what the floor MEANS, and so nobody
+#: later reads the pair as a window: the bound is ONE-SIDED. AAP 0.9.3 makes a count above
+#: the anchor a RECORDED DIFFERENCE and never a halt -- the anchor was measured over 32
+#: JAR producers and a full reactor contributes 38, and more JARs cannot yield fewer
+#: methods -- so no upper comparison is performed here and adding one would halt the run
+#: for succeeding.
+METHOD_COUNT_ANCHOR: Final[int] = 898_336
 
 
 class ConfigurationFault(Exception):
@@ -345,7 +444,7 @@ def _table_cells(line: str) -> list[str]:
     A row is a line whose first non-space character is ``|``. The leading and trailing
     empty cells that the pipe delimiters produce are dropped, and each cell is stripped of
     the emphasis and code markers the record uses for presentation (``*`` and a backtick),
-    so ``| **Bytes** | **541,255,894** |`` yields ``['Bytes', '541,255,894']``. Anything
+    so ``| **Bytes** | **547,980,224** |`` yields ``['Bytes', '547,980,224']``. Anything
     that is not a table row yields no cells, which is what keeps PROSE mentioning a digest
     -- and section 7 has such prose -- out of the parse.
     """
@@ -530,6 +629,260 @@ def record_of_account(root: Path, graph: Path) -> RecordOfAccount:
                            tuple(path for path, _, _ in candidates[1:]))
 
 
+class MethodCountClaim(NamedTuple):
+    """One record's stated method count for the graph, and where the statement came from.
+
+    ``shown`` is the display form of ``source`` -- repository-relative where the record is
+    inside the checkout, absolute where it is provisioned shared state -- so the report
+    names a path a reader can open.
+    """
+
+    count: int
+    source: Path
+    shown: str
+    provenance: str
+    evidence: str
+
+
+class MethodFloorResult(NamedTuple):
+    """The whole outcome of the method-count floor check, ready to be reported.
+
+    ``fatal`` empty means the floor is satisfied by an established, agreed count.
+    ``count`` is set only when exactly one distinct count was established, so a caller
+    can never print a number the records did not agree on.
+    """
+
+    claims: tuple[MethodCountClaim, ...]
+    silent: tuple[tuple[str, str], ...]
+    count: int | None
+    fatal: tuple[str, ...]
+
+
+def _method_count_in_text(record: Path, shown: str, text: str) -> tuple[int, str] | None:
+    """Return the one method count a plain-text record of account states, or ``None``.
+
+    Two strict shapes are accepted, both line-anchored on a LABEL so that a number in
+    prose can never be read as a count:
+
+    * ``METHODS <n>`` as the provisioning record writes it -- ``importCpg verify: METHODS
+      1398964 (internal 1308974), TYPEDECLS 119860, FILES 45037``;
+    * a labelled ``methods: <n>`` / ``methods = <n>`` line, which is the machine-readable
+      form a frontend or verification log would use.
+
+    ``None`` means the record states no count. That is a FACT about the record rather than
+    a failure -- this checkout's ``cpg-frontend.log`` is the record of a frontend that
+    persisted nothing, so it owns no count to state -- and the caller reports it as a
+    silent record. Raises ``ValueError`` when one record states more than one distinct
+    count: an ambiguous record cannot adjudicate a floor, exactly as it cannot adjudicate
+    an identity.
+    """
+    counts = {
+        int(value.replace(",", ""))
+        for value in re.findall(r"\bMETHODS[ \t]+([\d,]+)\b", text)
+    }
+    counts |= {
+        int(value.replace(",", ""))
+        for value in re.findall(r"^[ \t]*methods[ \t]*[:=][ \t]*([\d,]+)\b", text, re.M | re.I)
+    }
+    if not counts:
+        return None
+    if len(counts) != 1:
+        raise ValueError(
+            f"{shown} states {len(counts)} distinct method counts "
+            f"({', '.join(format(value, ',') for value in sorted(counts))}), so it cannot "
+            f"adjudicate the AAP 0.9.2 floor. An ambiguous record would let a reader pick "
+            f"the count that clears the floor and call it a check."
+        )
+    count = counts.pop()
+    return count, f"{count:,} methods, read from {record.name}"
+
+
+def declared_method_count(record: Path) -> tuple[int, str] | None:
+    """Return the method count the environment record DECLARES, or ``None``.
+
+    Read from the table row of section 7 whose first cell is ``Methods``, the row that
+    sits beside the ``Bytes`` and ``sha256`` rows ``declared_identity`` reads -- so the
+    declared count and the declared identity are statements about the same graph, which is
+    what makes them comparable with the provisioning record's pair.
+
+    The value cell carries the internal-method figure in parentheses after the total
+    (``**1,398,964** (internal 1,308,974)``), so the TOTAL is taken from the head of the
+    cell and the parenthetical is left alone: AAP 0.9.2's floor is stated against the
+    method count, not against the internal subset, and reading the smaller number would
+    fail a graph that satisfies the requirement.
+
+    Raises ``ConfigurationFault`` when section 7 cannot be located at all -- the same
+    condition, with the same status, that ``declared_identity`` raises it for -- and
+    ``ValueError`` when the section carries more than one distinct ``Methods`` row or a
+    row whose value is not a decimal count.
+    """
+    section = graph_section(record)
+    counts: set[int] = set()
+    for line in section:
+        cells = _table_cells(line)
+        if len(cells) < 2:
+            continue
+        if cells[0].lower().rstrip(":").strip() != "methods":
+            continue
+        match = re.match(r"\**[ \t]*([\d,]+)", cells[1])
+        if not match:
+            raise ValueError(
+                f"{ENVIRONMENT_RECORD} section {GRAPH_SECTION_NUMBER} has a 'Methods' row "
+                f"whose value does not begin with a decimal count: {cells[1]!r}. A count "
+                f"that cannot be read is not a count that clears the floor."
+            )
+        counts.add(int(match.group(1).replace(",", "")))
+    if not counts:
+        return None
+    if len(counts) != 1:
+        raise ValueError(
+            f"{ENVIRONMENT_RECORD} section {GRAPH_SECTION_NUMBER} declares "
+            f"{len(counts)} distinct method counts "
+            f"({', '.join(format(value, ',') for value in sorted(counts))}); an ambiguous "
+            f"declaration cannot adjudicate the AAP 0.9.2 floor."
+        )
+    count = counts.pop()
+    return count, (f"{count:,} methods, declared by {ENVIRONMENT_RECORD} section "
+                   f"{GRAPH_SECTION_NUMBER}")
+
+
+def method_floor(root: Path, graph: Path) -> MethodFloorResult:
+    """Adjudicate the graph's method count against AAP 0.9.2's floor.
+
+    The claim sources are EXACTLY the records of account ``record_of_account`` resolves --
+    this checkout's frontend log, the provisioning records beside the resolved graph, and
+    the environment record's section 7 -- and nothing else. That restriction is the point
+    rather than an economy: those three have just been adjudicated to describe ONE set of
+    bytes, so a count any of them states is a count about the graph that is about to be
+    loaded. A count taken from a stage log describing a DIFFERENT identity would be a
+    count about a different graph, and comparing it here would manufacture a disagreement
+    out of two correct measurements. ``harness/artifacts/logs/cpg-verify.log`` is the live
+    instance: it records 1,396,899 methods for the superseded 541,309,809-byte generation.
+
+    Four outcomes, and every one of them is decided here rather than by the caller:
+
+    * at or above the floor -- the floor is satisfied, and the report says so with both
+      numbers and with AAP 0.9.3's rule that a count above the anchor is a recorded
+      difference and never a halt;
+    * below the floor -- FATAL, naming the observed count and the floor. This is the
+      truncation signature AAP 0.9.2 stops the run for;
+    * no record states a count -- FATAL. An unestablished count is not a satisfied floor,
+      and a gate that treated silence as agreement would report the graph as checked while
+      checking nothing;
+    * two records state DIFFERENT counts -- FATAL, with every claim recorded and none
+      preferred, exactly as a disagreement between two identity records is fatal. The
+      resolution is a provisioning act: the graph and its records are replaced together.
+
+    Every failure mode returns a message rather than raising, so the caller can report all
+    of them in one pass and map them onto the single HALT status.
+    """
+    claims: list[MethodCountClaim] = []
+    silent: list[tuple[str, str]] = []
+    fatal: list[str] = []
+
+    def shown_for(path: Path) -> str:
+        try:
+            return str(path.relative_to(root))
+        except ValueError:
+            return str(path)
+
+    plain: list[tuple[Path, str]] = [
+        (root / "harness/artifacts/logs/cpg-frontend.log",
+         "write-time record: this checkout's frontend"),
+    ]
+    plain.extend(
+        (record, "provisioning record of account beside the resolved graph")
+        for record in provisioning_records(graph)
+    )
+    for record, provenance in plain:
+        shown = shown_for(record)
+        if not record.is_file():
+            silent.append((shown, "the record is absent, so it states no method count"))
+            continue
+        try:
+            found = _method_count_in_text(record, shown, record.read_text(errors="replace"))
+        except (ValueError, OSError) as exc:
+            fatal.append(str(exc))
+            continue
+        if found is None:
+            silent.append((
+                shown,
+                "the record states no method count in either accepted form "
+                "('METHODS <n>' or a labelled 'methods:' line), which is a fact about the "
+                "record rather than a failure",
+            ))
+            continue
+        count, evidence = found
+        claims.append(MethodCountClaim(count, record, shown, provenance, evidence))
+
+    environment = root / ENVIRONMENT_RECORD
+    shown = shown_for(environment)
+    declared: tuple[int, str] | None = None
+    # Tracked separately from `fatal`, which by this point may already hold a failure from
+    # a plain-text record: "the declaration could not be read" and "the declaration is
+    # absent" are different facts about this record, and only the second is silence.
+    environment_unreadable = False
+    try:
+        declared = declared_method_count(environment)
+    except ConfigurationFault as exc:
+        # Reported as fatal rather than re-raised: the identity half of this gate already
+        # maps an unreadable section 7 onto CONFIG_EXIT, and duplicating that decision
+        # here could only make the two halves disagree about the status.
+        fatal.append(str(exc))
+        environment_unreadable = True
+    except (ValueError, OSError) as exc:
+        fatal.append(str(exc))
+        environment_unreadable = True
+    if declared is not None:
+        count, evidence = declared
+        claims.append(MethodCountClaim(
+            count, environment, shown,
+            f"declared record: {ENVIRONMENT_RECORD} section {GRAPH_SECTION_NUMBER}, the "
+            f"authoritative environment record",
+            evidence))
+    elif not environment_unreadable:
+        silent.append((shown, f"section {GRAPH_SECTION_NUMBER} declares no 'Methods' row"))
+
+    distinct = {claim.count for claim in claims}
+    if not claims and not fatal:
+        fatal.append(
+            "no record of account states a method count for the graph, so AAP 0.9.2's "
+            f"floor of {METHOD_COUNT_FLOOR:,} methods could not be established. An "
+            "unestablished count is not a satisfied floor: a truncated graph answers every "
+            "query with silence, and silence is indistinguishable from a clean result. The "
+            f"records read were: "
+            + "; ".join(f"{path} ({reason})" for path, reason in silent)
+        )
+    elif len(distinct) > 1:
+        fatal.append(
+            "the records of account state DIFFERENT method counts, so no count can be "
+            "adjudicated against AAP 0.9.2's floor and nothing may be loaded. "
+            + "; ".join(
+                f"{claim.shown} ({claim.provenance}) states {claim.count:,} methods"
+                for claim in claims)
+            + ". No claim is preferred for clearing the floor -- a check that picks the "
+              "number it likes is not a check -- and the disagreement itself means one "
+              "record describes a graph that is not the graph on disk. Resolving it is a "
+              "PROVISIONING act: replace the graph and every record of its counts "
+              "together, so one set of counts describes one set of bytes."
+        )
+    count = distinct.pop() if len(distinct) == 1 else None
+    if count is not None and count < METHOD_COUNT_FLOOR:
+        fatal.append(
+            f"the graph states {count:,} methods, below AAP 0.9.2's floor of "
+            f"{METHOD_COUNT_FLOOR:,} ({count:,} < {METHOD_COUNT_FLOOR:,}, short by "
+            f"{METHOD_COUNT_FLOOR - count:,}). AAP 0.9.2 lists a method count below "
+            f"{METHOD_COUNT_FLOOR:,} among the conditions that stop the run: fewer methods "
+            f"from more JARs is the truncation signature, and a truncated graph's silence "
+            f"is indistinguishable from a clean result. The floor is the 5% lower bound "
+            f"around the {METHOD_COUNT_ANCHOR:,}-method anchor (AAP 0.2.1) and it is "
+            f"one-sided, so this is a shortfall and never a window violation. The input "
+            f"set is NEVER trimmed to move a count: a graph this small was built over less "
+            f"than the complete input manifest, or persisted less than it built."
+        )
+    return MethodFloorResult(tuple(claims), tuple(silent), count, tuple(fatal))
+
+
 def effective_harness_cpg(root: Path) -> Path:
     """Return the path the Stage 3 runner will actually open, however it was set.
 
@@ -603,6 +956,11 @@ def main(argv: list[str] | None = None) -> int:
         config_error = str(exc)
     except (ValueError, OSError) as exc:
         record_error = str(exc)
+    # The method-count floor is measured unconditionally and never raises: it asks a
+    # different question from the identity comparison -- "is this graph whole?" rather
+    # than "is this the recorded graph?" -- and a run whose identity record is unreadable
+    # still needs the floor's verdict reported rather than skipped.
+    floor = method_floor(root, effective_harness_cpg(root))
 
     report: list[str] = []
     fatal: list[str] = []
@@ -630,20 +988,32 @@ def main(argv: list[str] | None = None) -> int:
     emit("  when this checkout's frontend wrote one, the provisioning record beside the")
     emit("  graph itself, and always the identity declared by")
     emit(f"  {ENVIRONMENT_RECORD} section {GRAPH_SECTION_NUMBER}. Records that disagree")
-    emit("  are fatal and none is preferred for matching. The runner MEASURES and PRINTS")
-    emit("  its input's size and digest, and harness/lib/joern-scan.sc calls importCpg and")
-    emit("  then counts, so without this comparison a mismatch would reach the engine.")
-    emit(f"  A mismatch here exits {HALT_EXIT}, and both committed callers refuse on it:")
-    emit("  harness/bin/run-joern.sh -- the canonical direct runner -- runs this gate")
-    emit("  --check-only before it touches its artifact or invokes joern and maps a")
-    emit("  non-zero status to its own configuration fault (78), and")
-    emit("  harness/lib/run-joern-gated.sh has no branch that reaches the runner after a")
-    emit("  non-zero gate. The direct path is therefore bound by this status too, which")
-    emit("  the invocation on record predates.")
+    emit("  are fatal and none is preferred for matching. It also adjudicates the graph's")
+    emit(f"  METHOD COUNT against AAP 0.9.2's floor of {METHOD_COUNT_FLOOR:,}, because")
+    emit("  identity and completeness are different facts: a truncated graph persisted")
+    emit("  once has a consistent identity in every record that describes it. The runner")
+    emit("  MEASURES and PRINTS its input's size and digest, and harness/lib/joern-scan.sc")
+    emit("  calls importCpg and then counts, so without this comparison a mismatch or a")
+    emit("  truncation would reach the engine.")
+    emit()
+    emit(f"  Any fatal finding here exits {HALT_EXIT}. The callers that refuse on it are")
+    emit("  harness/lib/run-joern-gated.sh, which has no branch reaching the runner after")
+    emit("  a non-zero gate, and the run of record, which publishes this report to")
+    emit("  harness/artifacts/logs/joern-preflight.log immediately before the Stage 3")
+    emit("  load. harness/bin/run-joern.sh does NOT read it: it prints its input's")
+    emit("  identity without comparing it, and it is REFERENCE under AAP 0.6.1, so closing")
+    emit("  that inside the runner is a provisioning change whose patch is recorded in")
+    emit("  oss-scan-results/run-record.md. A direct invocation of that runner is")
+    emit("  therefore not bound by this status.")
     emit()
     emit(f"  Gate source             : harness/lib/preflight_graph_identity.py")
-    emit(f"  Binding callers         : harness/bin/run-joern.sh (canonical, --check-only)")
-    emit(f"                            harness/lib/run-joern-gated.sh (step 2 of 4)")
+    emit(f"  Binding callers         : harness/lib/run-joern-gated.sh (step 2 of 4)")
+    emit(f"                            the run of record, publishing to")
+    emit(f"                            harness/artifacts/logs/joern-preflight.log before")
+    emit(f"                            the Stage 3 load")
+    emit(f"  NOT a caller            : harness/bin/run-joern.sh (REFERENCE, AAP 0.6.1")
+    emit(f"                            -- it prints its input's identity without")
+    emit(f"                            comparing it)")
     emit(f"  Checked at (UTC)        : {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
     emit(f"  Clone index             : {os.environ.get('BLITZY_CLONE_INDEX', '0')}")
     if record is not None:
@@ -669,6 +1039,8 @@ def main(argv: list[str] | None = None) -> int:
         emit("                            AAP 0.6.4 names are the subjects that decide the load")
     emit(f"  HARNESS_CPG in env      : "
          f"{os.environ.get('HARNESS_CPG', '<unset -- env.sh default applies>')}")
+    emit(f"  Method-count floor      : {METHOD_COUNT_FLOOR:,} methods (AAP 0.9.2, "
+         f"authored in this module)")
     emit()
 
     if config_error is not None:
@@ -679,9 +1051,12 @@ def main(argv: list[str] | None = None) -> int:
         emit("  CONFIGURATION FAULT:")
         emit_wrapped("    ", config_error)
         emit()
-        emit("  Nothing was measured against a record, and nothing may be loaded. Correct")
-        emit(f"  the record ({ENVIRONMENT_RECORD} section {GRAPH_SECTION_NUMBER}) and")
-        emit("  re-run; this gate does not repair a document it is required to read.")
+        emit("  No subject was measured against a recorded identity pair, and nothing may")
+        emit(f"  be loaded. Correct the record ({ENVIRONMENT_RECORD} section")
+        emit(f"  {GRAPH_SECTION_NUMBER}) and re-run; this gate does not repair a document")
+        emit("  it is required to read. The method-count floor below is reported anyway --")
+        emit("  it reads the same records for a different figure, and an unreadable")
+        emit("  identity does not excuse an unchecked floor.")
     elif record is None:
         fatal.append(record_error or "no record of account could be resolved")
         emit("  FATAL:")
@@ -737,6 +1112,53 @@ def main(argv: list[str] | None = None) -> int:
                     "not the graph the runner would load"
                 )
             emit()
+
+    # ---------------------------------------------------------------- method-count floor
+    # A second, independent question about the same graph: the identity comparison above
+    # establishes that these are the RECORDED bytes, and this establishes that the graph
+    # those bytes hold is WHOLE. Neither substitutes for the other -- a truncated graph
+    # persisted once has a perfectly consistent identity in every record that describes
+    # it -- so both are measured on every load.
+    emit("  METHOD-COUNT FLOOR (AAP 0.9.2), adjudicated from the same records of account:")
+    emit()
+    emit(f"    Floor                 : {METHOD_COUNT_FLOOR:,} methods -- the 5% lower "
+         f"bound around")
+    emit(f"                            AAP 0.2.1's {METHOD_COUNT_ANCHOR:,}-method anchor, "
+         f"and ONE-SIDED:")
+    emit("                            AAP 0.9.3 makes a count ABOVE the anchor a recorded")
+    emit("                            difference and never a halt, because the anchor was")
+    emit("                            measured over 32 JAR producers where a full reactor")
+    emit("                            contributes 38, and more JARs cannot yield fewer")
+    emit("                            methods. No upper comparison is performed, and")
+    emit("                            adding one would halt the run for succeeding.")
+    for claim in floor.claims:
+        emit(f"    Claim                 : {claim.count:,} methods")
+        emit(f"      stated by           : {claim.shown}")
+        emit(f"      its provenance      : {claim.provenance}")
+        emit(f"      evidence            : {claim.evidence}")
+    for path, reason in floor.silent:
+        emit(f"    States no count       : {path}")
+        for line_index, line in enumerate(_wrap(reason, 56)):
+            emit("      "
+                 + ("reason              : " if line_index == 0 else " " * 22)
+                 + line)
+    if floor.fatal:
+        for item in floor.fatal:
+            emit("    FATAL:")
+            emit_wrapped("      ", item)
+        fatal.extend(floor.fatal)
+    elif floor.count is not None:
+        emit(f"    Adjudicated count     : {floor.count:,} methods, agreed by "
+             f"{len(floor.claims)} record(s) of account")
+        emit(f"    Verdict               : FLOOR SATISFIED -- {floor.count:,} >= "
+             f"{METHOD_COUNT_FLOOR:,}")
+        if floor.count > METHOD_COUNT_ANCHOR:
+            emit(f"                            {floor.count:,} also exceeds the "
+                 f"{METHOD_COUNT_ANCHOR:,} anchor, which")
+            emit("                            AAP 0.9.3 RECORDS as a difference rather than")
+            emit("                            halting on. This is not a window and must not")
+            emit("                            be turned into one.")
+    emit()
 
     # One decision, three outcomes, so the printed verdict and the exit status cannot
     # drift apart: a record that could not be read is 78, a graph that does not match its

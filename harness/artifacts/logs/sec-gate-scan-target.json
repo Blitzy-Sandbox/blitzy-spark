@@ -2,11 +2,13 @@
   "gate": "harness/lib/preflight_scan_target.py",
   "findings_addressed": [
     "SEC-01",
-    "SEC-03"
+    "SEC-03",
+    "QA Issue 2",
+    "QA Issue 12"
   ],
-  "checked_at_utc": "2026-09-02T22:17:28Z",
-  "clone_index": "0",
-  "repository_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90",
+  "checked_at_utc": "2026-09-03T09:07:46Z",
+  "clone_index": "424",
+  "repository_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
   "pin_authored_in_module": "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
   "git_executable": "/usr/bin/git",
   "git_child_environment": "every GIT_* stripped; GIT_CONFIG_NOSYSTEM=1; GIT_CONFIG_GLOBAL=/dev/null; GIT_TERMINAL_PROMPT=0",
@@ -34,49 +36,49 @@
       "check_id": "path-policy:HARNESS_DIR",
       "subject": "$HARNESS_DIR",
       "expectation": "absolute, no control characters, no shell or source syntax",
-      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness (89 characters, sha256 98143c80865739202c85d2b2b3a1954944554dce6153f0f786fbbb557380c369)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness (83 characters, sha256 c857e080551e0de3a228d7fc1d225bb144b71c585e8d1a59e508793acb257c1e)",
       "verdict": "PASS"
     },
     {
       "check_id": "path-policy:HARNESS_REPO_ROOT",
       "subject": "$HARNESS_REPO_ROOT",
       "expectation": "absolute, no control characters, no shell or source syntax",
-      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90 (81 characters, sha256 dc08335851545bbf06c25b19669e27f7cd44366a788409566dea8a448f04dbeb)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0 (75 characters, sha256 addc162d255016b0b733e18b9389c81a3ef10a4daeb5127c37abca28173c1310)",
       "verdict": "PASS"
     },
     {
       "check_id": "path-policy:HARNESS_RAW_DIR",
       "subject": "$HARNESS_RAW_DIR",
       "expectation": "absolute, no control characters, no shell or source syntax",
-      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/raw (103 characters, sha256 7c76d429279c54927e488f2532a439aa8902c45bf577b7abfae4f56061364664)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw (97 characters, sha256 597a92e41b3b261f4adf8a5fa6b4fcd951b7e6df837e2356554b86974b1462b5)",
       "verdict": "PASS"
     },
     {
       "check_id": "path-policy:HARNESS_LOG_DIR",
       "subject": "$HARNESS_LOG_DIR",
       "expectation": "absolute, no control characters, no shell or source syntax",
-      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs (104 characters, sha256 40a772defcc1293b35c14fdba58121aba4c03324a299f763fdccc376286f6b0c)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs (98 characters, sha256 e057d22162c89b7eea7b76f44b35e94e6e77f92a47b90a7062d3c3580c2c9480)",
       "verdict": "PASS"
     },
     {
       "check_id": "path-policy:HARNESS_SCOPE_FILE",
       "subject": "$HARNESS_SCOPE_FILE",
       "expectation": "absolute, no control characters, no shell or source syntax",
-      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/scope/allowlist.txt (109 characters, sha256 29a703b7330931d65d4ad03ce90532913474338c346ccd3e0bd757c68eb44422)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/scope/allowlist.txt (103 characters, sha256 7619a810d12efc9df0aaf3bfd0b910b7e3c0de1e6d3391fbd169f5377ef34853)",
       "verdict": "PASS"
     },
     {
       "check_id": "path-policy:HARNESS_CPG",
       "subject": "$HARNESS_CPG",
       "expectation": "absolute, no control characters, no shell or source syntax",
-      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/cpg/spark.cpg (103 characters, sha256 c46237de06ecd8106eca533b74e9c01fe79091291e1d7fa276ff8f5e0b553e24)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg (97 characters, sha256 75519d3ef8502df0eec753125adb051d6360ee2fef38b5dbdf0f5e8a59f30af3)",
       "verdict": "PASS"
     },
     {
       "check_id": "path-policy:HARNESS_LIB_DIR",
       "subject": "$HARNESS_LIB_DIR",
       "expectation": "absolute, no control characters, no shell or source syntax",
-      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/lib (93 characters, sha256 31f274c6c94a4d4f0752a5a33bbba52410383ff4426929db51c88f8129972583)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib (87 characters, sha256 1314d9c3f4668a5832f15d9f8fe8329a4c4735e452df72570402bcaac9632af5)",
       "verdict": "PASS"
     },
     {
@@ -97,7 +99,7 @@
       "check_id": "path-policy:HARNESS_SCRATCH_DIR",
       "subject": "$HARNESS_SCRATCH_DIR",
       "expectation": "absolute, no control characters, no shell or source syntax",
-      "observed": "/tmp/blitzy-harness-scratch/0 (29 characters, sha256 96c90c9ef6ee121f8d67631fadf63296764f6c2890c2ac9b0015c84581491e29)",
+      "observed": "/tmp/blitzy-harness-scratch/424 (31 characters, sha256 23c82c83c8322dafdcd822ddbe24e8d72234db671c2486f4f5d19f567f3c5ae1)",
       "verdict": "PASS"
     },
     {
@@ -178,6 +180,20 @@
       "verdict": "PASS"
     },
     {
+      "check_id": "artifact-tree:HARNESS_RAW_DIR",
+      "subject": "$HARNESS_RAW_DIR",
+      "expectation": "$HARNESS_RAW_DIR exists as a directory before any runner is invoked (AAP 0.8.1: a missing tree is a provisioning failure; this run neither creates nor clears it)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw exists and is a directory; census: 8 top-level entries (8 file(s), 0 directory(ies), 0 other), 8 file(s) recursively; role: runner-only: exactly one verbatim artifact per tool that writes one, and nothing else, ever; NON-EMPTY, which this check does not refuse: emptiness is AAP 0.8.1's Stage-0 condition, measured before this run wrote anything and owned by harness/artifacts/logs/gate-record.json, which carries it as a live halt. Existence is what is refused here",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "artifact-tree:HARNESS_LOG_DIR",
+      "subject": "$HARNESS_LOG_DIR",
+      "expectation": "$HARNESS_LOG_DIR exists as a directory before any runner is invoked (AAP 0.8.1: a missing tree is a provisioning failure; this run neither creates nor clears it)",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs exists and is a directory; census: 129 top-level entries (125 file(s), 4 directory(ies), 0 other), 163 file(s) recursively; role: this run's own evidence: per-tool streams and status, plus the durable records for the gate, the build, the graph and normalization; NON-EMPTY, which this check does not refuse: emptiness is AAP 0.8.1's Stage-0 condition, measured before this run wrote anything and owned by harness/artifacts/logs/gate-record.json, which carries it as a live halt. Existence is what is refused here",
+      "verdict": "PASS"
+    },
+    {
       "check_id": "scan-target-exists",
       "subject": "$SPARK_SRC",
       "expectation": "an existing directory",
@@ -223,51 +239,51 @@
     },
     "HARNESS_DIR": {
       "present": true,
-      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness",
-      "length": 89,
-      "sha256": "98143c80865739202c85d2b2b3a1954944554dce6153f0f786fbbb557380c369",
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness",
+      "length": 83,
+      "sha256": "c857e080551e0de3a228d7fc1d225bb144b71c585e8d1a59e508793acb257c1e",
       "verdict": "PASS"
     },
     "HARNESS_REPO_ROOT": {
       "present": true,
-      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90",
-      "length": 81,
-      "sha256": "dc08335851545bbf06c25b19669e27f7cd44366a788409566dea8a448f04dbeb",
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
+      "length": 75,
+      "sha256": "addc162d255016b0b733e18b9389c81a3ef10a4daeb5127c37abca28173c1310",
       "verdict": "PASS"
     },
     "HARNESS_RAW_DIR": {
       "present": true,
-      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/raw",
-      "length": 103,
-      "sha256": "7c76d429279c54927e488f2532a439aa8902c45bf577b7abfae4f56061364664",
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw",
+      "length": 97,
+      "sha256": "597a92e41b3b261f4adf8a5fa6b4fcd951b7e6df837e2356554b86974b1462b5",
       "verdict": "PASS"
     },
     "HARNESS_LOG_DIR": {
       "present": true,
-      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs",
-      "length": 104,
-      "sha256": "40a772defcc1293b35c14fdba58121aba4c03324a299f763fdccc376286f6b0c",
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs",
+      "length": 98,
+      "sha256": "e057d22162c89b7eea7b76f44b35e94e6e77f92a47b90a7062d3c3580c2c9480",
       "verdict": "PASS"
     },
     "HARNESS_SCOPE_FILE": {
       "present": true,
-      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/scope/allowlist.txt",
-      "length": 109,
-      "sha256": "29a703b7330931d65d4ad03ce90532913474338c346ccd3e0bd757c68eb44422",
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/scope/allowlist.txt",
+      "length": 103,
+      "sha256": "7619a810d12efc9df0aaf3bfd0b910b7e3c0de1e6d3391fbd169f5377ef34853",
       "verdict": "PASS"
     },
     "HARNESS_CPG": {
       "present": true,
-      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/cpg/spark.cpg",
-      "length": 103,
-      "sha256": "c46237de06ecd8106eca533b74e9c01fe79091291e1d7fa276ff8f5e0b553e24",
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg",
+      "length": 97,
+      "sha256": "75519d3ef8502df0eec753125adb051d6360ee2fef38b5dbdf0f5e8a59f30af3",
       "verdict": "PASS"
     },
     "HARNESS_LIB_DIR": {
       "present": true,
-      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/lib",
-      "length": 93,
-      "sha256": "31f274c6c94a4d4f0752a5a33bbba52410383ff4426929db51c88f8129972583",
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib",
+      "length": 87,
+      "sha256": "1314d9c3f4668a5832f15d9f8fe8329a4c4735e452df72570402bcaac9632af5",
       "verdict": "PASS"
     },
     "HARNESS_SHARED_DIR": {
@@ -286,9 +302,9 @@
     },
     "HARNESS_SCRATCH_DIR": {
       "present": true,
-      "value": "/tmp/blitzy-harness-scratch/0",
-      "length": 29,
-      "sha256": "96c90c9ef6ee121f8d67631fadf63296764f6c2890c2ac9b0015c84581491e29",
+      "value": "/tmp/blitzy-harness-scratch/424",
+      "length": 31,
+      "sha256": "23c82c83c8322dafdcd822ddbe24e8d72234db671c2486f4f5d19f567f3c5ae1",
       "verdict": "PASS"
     },
     "JAVA_HOME": {
@@ -369,6 +385,45 @@
       "verdict": "PASS"
     }
   },
+  "artifact_trees": {
+    "HARNESS_RAW_DIR": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw",
+      "role": "runner-only: exactly one verbatim artifact per tool that writes one, and nothing else, ever",
+      "is_symlink": false,
+      "exists": true,
+      "is_directory": true,
+      "verdict": "PASS",
+      "census": {
+        "entries": 8,
+        "files": 8,
+        "directories": 0,
+        "other": 0,
+        "recursive_files": 8
+      },
+      "empty": false,
+      "emptiness_condition_owner": "harness/artifacts/logs/gate-record.json (AAP 0.8.1 Stage-0 gate); not decided here"
+    },
+    "HARNESS_LOG_DIR": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs",
+      "role": "this run's own evidence: per-tool streams and status, plus the durable records for the gate, the build, the graph and normalization",
+      "is_symlink": false,
+      "exists": true,
+      "is_directory": true,
+      "verdict": "PASS",
+      "census": {
+        "entries": 129,
+        "files": 125,
+        "directories": 4,
+        "other": 0,
+        "recursive_files": 163
+      },
+      "empty": false,
+      "emptiness_condition_owner": "harness/artifacts/logs/gate-record.json (AAP 0.8.1 Stage-0 gate); not decided here"
+    }
+  },
+  "artifact_tree_policy": "existence as a directory is REFUSED on absence (AAP 0.8.1/0.9.2, QA Issue 2: env.sh line 91's `mkdir -p ... || true` runs on every runner's source of env.sh, so scope.sh lines 68-69's -d guard cannot fire for a missing tree). Neither tree is created or cleared by this gate. A tree that exists and is non-empty does NOT refuse here: emptiness is the Stage-0 gate condition owned by harness/artifacts/logs/gate-record.json",
   "git_invocations": [
     {
       "argv": [
@@ -407,6 +462,32 @@
       "stderr": ""
     }
   ],
-  "residual": "harness/bin/run-<tool>.sh remains directly executable and is not bound by this exit status; run-trivy.sh lines 52-53 interpolate $TRIVY_CACHE_DIR into python3 -c source. Provisioning fix: pass the metadata path as positional argv to fixed Python code.",
+  "residual": "harness/bin/run-<tool>.sh remains directly executable and is not bound by this exit status, so the three defects below are compensated for rather than closed. Every file named is REFERENCE under AAP 0.6.1/0.6.5 and each patch belongs to provisioning; all three are carried in oss-scan-results/run-record.md.",
+  "residual_provisioning_defects": [
+    {
+      "id": "QA Issue 10 / SEC-03",
+      "location": "harness/bin/run-trivy.sh lines 52-53",
+      "class": "CWE-94 code injection",
+      "defect": "$TRIVY_CACHE_DIR is interpolated into the source text of a python3 -c program, so a directory name that closes the embedded string executes arbitrary Python; proven exploitable with the runner still exiting 0 and writing a valid artifact",
+      "patch": "pass the metadata path as positional argv to fixed code -- python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(\"v%s UpdatedAt=%s\"%(d[\"Version\"],d[\"UpdatedAt\"]))' \"$TRIVY_CACHE_DIR/db/metadata.json\" -- and the same for java-db on line 53",
+      "compensating_control_here": "path-policy:TRIVY_CACHE_DIR refuses every shell- and source-significant character before any runner is invoked"
+    },
+    {
+      "id": "QA Issue 2",
+      "location": "harness/env.sh line 91",
+      "class": "AAP 0.8.1/0.9.2 mandated halt unreachable",
+      "defect": "mkdir -p \"$HARNESS_RAW_DIR\" \"$HARNESS_LOG_DIR\" \"$HARNESS_SCRATCH_DIR\" 2>/dev/null || true runs on every runner's source of env.sh, so scope.sh lines 68-69's -d guard is handed trees created on the way to it and the missing-tree halt cannot fire; || true also swallows permission failures",
+      "patch": "drop the two artifact trees from the mkdir -p, keeping only HARNESS_SCRATCH_DIR, and drop the || true: mkdir -p \"$HARNESS_SCRATCH_DIR\"",
+      "compensating_control_here": "artifact-tree:HARNESS_RAW_DIR and artifact-tree:HARNESS_LOG_DIR refuse an absent or non-directory tree, and create and clear nothing"
+    },
+    {
+      "id": "QA Issue 18 / D23 / P5-1",
+      "location": "harness/env.sh lines 19-22",
+      "class": "configuration: a documented override destroyed by sourcing",
+      "defect": "HARNESS_DIR and HARNESS_REPO_ROOT are assigned unconditionally while 27 other exports use ${VAR:-default}, so both preflight gates' documented HARNESS_REPO_ROOT override is silently overwritten in exactly the shells the runners use",
+      "patch": "export HARNESS_DIR=\"${HARNESS_DIR:-$(cd \"$(dirname \"$_harness_self\")\" && pwd)}\" and the same shape for HARNESS_REPO_ROOT",
+      "compensating_control_here": "none available: a gate cannot restore a value the environment file overwrote before the gate started. Reported only, and the override remains usable in a shell that has not sourced env.sh"
+    }
+  ],
   "value_disclosure_policy": "a value that passes the character policy is recorded in full (path text, which AAP 0.1.3 excludes from secrets); a refused value is recorded only by length, sha256 and the class and index of each violation"
 }

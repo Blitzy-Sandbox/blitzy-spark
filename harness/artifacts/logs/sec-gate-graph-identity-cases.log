@@ -117,3 +117,24 @@ exit     : 0 (expected 0 -- one identity describing one set of bytes)
 
 ordering evidence after every case: 2625 B 608f924566338d3cc24e612bfcac0b9d1f41c055a8bacd26bf41a1aa21a36da0
 end: 2026-09-02T20:50:38Z
+
+--------------------------------------------------------------------------------
+SUPERSESSION APPENDED 2026-09-03
+--------------------------------------------------------------------------------
+Nothing above is edited. Every case above ran at 2026-09-02T20:50:33Z against the
+graph that stood on disk then, and line 5 states that graph's identity as a bare
+present-tense fact because it was one at the time:
+    541309809 bytes  4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+The graph was rebuilt on 2026-09-03 and the pair on disk is now
+    547980224 bytes  325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+with methods 1,398,964 / type declarations 119,860 / files 45,037. So the MATCH
+verdicts above are evidence that the gate agreed with the records of account on
+2026-09-02, not that either states the identity in use. The gate was re-run against
+the re-anchored records on 2026-09-03: harness/lib/preflight_graph_identity.py
+--check-only exits 0, and the current run of it is published at
+harness/artifacts/logs/joern-preflight.log (hyphen, not the dot-named
+joern.preflight.log, which is the 2026-08-24 run of the same gate): its line 36
+carries `Checked at (UTC) : 2026-09-03T09:07:46Z` and its lines 48 and 57 the live
+sha256 with verdict MATCH. Write-time owners of the live pair are
+/opt/blitzy-harness/provision-log/{cpg-identity.txt,cpg-record.txt}; the counts come
+from harness/artifacts/logs/cpg-verify.log PART 3.

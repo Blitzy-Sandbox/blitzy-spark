@@ -108,32 +108,32 @@ Evidence: `provision-log/tool-versions.txt`, `provision-log/test1-toolchain.log`
 |---|---|---|---|
 | Opengrep rules | commit **`f1d2b562b414783763fd02a6ed2736eaed622efa`** | **2,006 Code rules** over 58 `--config` directories | `$OPENGREP_RULES_DIR` = `/opt/blitzy-harness/rules/opengrep-rules` |
 | Semgrep rules | commit **`40b8c63f75dc7c22c8a77482d73bfb864b146f7e`** | **2,149 Code rules, 19 Pro-only skipped** over 60 `--config` directories | `$SEMGREP_RULES_DIR` = `/opt/blitzy-harness/rules/semgrep-rules` |
-| datadog SAST ruleset | sha256 **`4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1`** | **48 rulesets / 1,093 rules** | `$DD_SAST_RULES_FILE` = `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json` |
-| Trivy vulnerability DB | v2, `UpdatedAt` **2026-08-24T06:55:32.451220873Z** | 108.98 MiB | `$TRIVY_CACHE_DIR` = `/opt/blitzy-harness/trivy-cache` |
-| Trivy java DB | v1, `UpdatedAt` **2026-08-24T01:07:04.599776272Z** | 910.94 MiB | same cache |
-| Dependency-Check NVD | keyless NIST JSON 2.0 datafeed, **NVD API Last Modified 2026-08-24T08:00:04-04** | 239 MB `odc.mv.db` | `$HARNESS_DC_DATA_DIR` = `/opt/blitzy-harness/dc-data` |
+| datadog SAST ruleset | sha256 **`d945a118d03fba3a50d1c23363b9f38d5f5291814d508c8d3346754cc7dc6ebf`** | **51 rulesets / 1,117 rules** over 7,499,997 bytes — **NOT COMPARABLE WITH THE REHEARSAL**, appendix S.6 | `$DD_SAST_RULES_FILE` = `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json` |
+| Trivy vulnerability DB | v2, `UpdatedAt` **2026-09-02T20:01:19.708956607Z** | 1,336,410,112 B `trivy.db` (1.24 GiB) — **NOT COMPARABLE**, appendix S.6 | `$TRIVY_CACHE_DIR` = `/opt/blitzy-harness/trivy-cache` |
+| Trivy java DB | v1, `UpdatedAt` **2026-09-02T01:07:52.720279557Z** | 1,515,495,424 B `trivy-java.db` (1.41 GiB) | same cache |
+| Dependency-Check NVD | keyless NIST JSON 2.0 datafeed, **NVD API Last Modified 2026-09-02T20:00:09-04** | 248,520,704 B `odc.mv.db` — **NOT COMPARABLE**, appendix S.6 | `$HARNESS_DC_DATA_DIR` = `/opt/blitzy-harness/dc-data` |
 | OSV-Scanner | **no local database** — queries `https://api.osv.dev` live at scan time | — | — |
 | Gitleaks | default rule set built into 8.30.1, not separately versioned | — | — |
 | Checkov | policies bundled with 3.3.12, not separately versioned | — | — |
 
 **The datadog ruleset is captured locally, which closes the largest reproducibility
-gap in the dataset.** Left alone this tool fetches ~1,093 rules from its API
-mid-scan with no recorded digest. Provisioning read the pinned source at tag `0.9.1`
+gap in the dataset.** Left alone this tool fetches its rules from its API mid-scan
+with no recorded digest. Provisioning read the pinned source at tag `0.9.1`
 (`crates/bins/src/bin/datadog-export-rulesets.rs`,
 `crates/cli/src/model/datadog_api.rs`,
 `crates/static-analysis-kernel/src/model/{rule,ruleset}.rs`) for the serde shape,
-enumerated the default rulesets for all 12 languages from
+enumerated the default rulesets for every language the API offers, from
 `/api/v2/static-analysis/default-rulesets/<LANG>`, fetched each from
 `/api/v2/static-analysis/rulesets/<name>?include_tests=false&include_testing_rules=true`,
 and wrote one local config. It is **proven offline**: with `-r $DD_SAST_RULES_FILE`
-the tool reports `#static analysis rules : 1093` and makes no API call.
+the tool reports `#static analysis rules : 1117` and makes no API call.
 
-**Recorded digest divergence.** The scanning run's plan expects
-`e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7` for this file.
-That was a differently-serialized capture of the same content; a byte digest cannot
-survive a different serializer. The comparable measures all match exactly: **48
-rulesets, 1,093 rules, anonymous source, analyzer revision `f76636e4`**. Compare on
-those, not on the digest.
+**Four identities, and this tool's counts are NOT COMPARABLE WITH THE REHEARSAL.**
+The row above is the file on disk after the 2026-09-03T01:17:07Z re-provisioning:
+51 rulesets, 1,117 rules, 13 languages, 0 Scala rules. The scanning run's plan
+expects `e70ede3088…ff6c44f7` over 48 / 1,093; this record previously stated
+`4f397e8141…4b8fef6f1` over the same counts; and the capture the runner actually
+read was `c5fd464c29…ba354f322` over 53 / 1,147. **Appendix S.6** owns this field.
 
 Two feed facts a re-provisioning needs: Dependency-Check's `--nvdDatafeed` default
 pattern is `nvdcve-{0}.json.gz` while NVD publishes `nvdcve-2.0-{0}.json.gz`, so the
@@ -141,11 +141,11 @@ explicit pattern
 `https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz` is required; and a
 transient 404 on the trailing `modified` feed leaves `scanInfo.dataSource` **empty**
 while still exiting 0, so seed with `--nvdMaxRetryCount 10 --nvdApiDelay 2000` and
-verify the timestamps afterwards. The successful seed took 896 s.
+verify the timestamps afterwards. The successful seed took 976,188 ms.
 
 Evidence: `provision-log/rulesets-feeds.txt`,
 `opengrep-ruleset-validate.log`, `semgrep-ruleset-validate.log`,
-`dc-nvd-seed.log`, `dc-nvd-seed2.log`, and the `.meta.json` sidecar beside the
+`dc-nvd-seed.log`, `dc-seed-verify.log`, `trivy-seed.log`, and the `.meta.json` beside the
 datadog ruleset.
 
 ---
@@ -280,14 +280,14 @@ file-based tools. Their absence from this table is expected, not a gap.
 
 | | |
 |---|---|
-| Path | The bytes live at `/opt/blitzy-harness/cpg/spark.cpg`. `$HARNESS_CPG` is set to `<repo>/harness/cpg/spark.cpg`, a 33-byte **symlink** to those bytes — so the runbook's named path and the exported variable are the same file, and both resolve to the sha256 below. The six identity/count rows and the two write-fact rows below were **re-anchored on 2026-09-02** to this graph's write-time record of account; the superseded 2026-08-24 figures are kept in the supersession appendix at the end of this file |
-| **Bytes** | **541,309,809** |
-| **sha256** | **`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`** |
-| **Methods** | **1,396,899** (internal 1,307,112) |
-| **Type declarations** | **119,721** |
+| Path | The bytes live at `/opt/blitzy-harness/cpg/spark.cpg`. `$HARNESS_CPG` is set to `<repo>/harness/cpg/spark.cpg`, a 33-byte **symlink** to those bytes — so the runbook's named path and the exported variable are the same file, and both resolve to the sha256 below. The six identity/count rows and the two write-fact rows below were **re-anchored on 2026-09-03** to this graph's write-time record of account, after the 2026-09-03T01:17:07Z re-provisioning rebuilt the graph; the superseded 2026-08-24 and 2026-09-01 figures are kept in the supersession appendix at the end of this file (S.2 and S.5) |
+| **Bytes** | **547,980,224** |
+| **sha256** | **`325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`** |
+| **Methods** | **1,398,964** (internal 1,308,974) |
+| **Type declarations** | **119,860** |
 | **Files** | **45,037** |
-| Heap used | **`-J-Xmx64g`** under JDK 21.0.12.1+1, peak sampled RSS **66.6 GB** |
-| Elapsed | **50 m 42 s** (18:28:00Z → 19:18:42Z) |
+| Heap used | **`-J-Xmx64g`** under JDK 21.0.12.1+1, peak sampled RSS **61 GB** |
+| Elapsed | **31 m 23 s** (2026-09-03T01:40:31Z → 02:11:54Z) |
 
 ```bash
 SL_LOGGING_LEVEL=WARN jimple2cpg /opt/blitzy-harness/cpg-input \
@@ -303,18 +303,18 @@ jars — both excluded by runbook instruction**, 14 test-fixture jars under
 `*/test-classes/`, 17 not build outputs. Each module contributed its main artifact
 and its `original-` pre-shade sibling.
 
-**Verified three times by `importCpg`** (post-build verification, an independent
-second load, and Test 4), and a fourth time by the Joern runner: all four report
-**1,397,339 / 119,691 / 45,037 identically** — the SUPERSEDED graph's counts, see
-appendix S.3. Verification load: ~12.5 min, RSS 30.2 GB.
+**Verified by `importCpg` at write time** by provisioning's own verification load
+(`/opt/blitzy-harness/provision-log/cpg-verify.log` lines 144-149), and re-verified
+independently by this run: **1,398,964 / 119,860 / 45,037**, internal methods
+1,308,974, `import_elapsed_ms` 537,309 (~9 m), `VERIFY_EXIT=0`.
 
 **Frontend metrics, observed rather than expected.** **31,598 `Overwriting class
-file` warnings over 26,221 distinct class files** (org/apache/spark 24,525;
-org/sparkproject/io 2,593; org/sparkproject/guava 2,017; org/sparkproject/connect
-2,017; org/apache/hive 126) — far above the runbook's ~5,700 because each module
-contributes both its shaded and its pre-shade artifact, which duplicate every class.
-**173 AST-creation exceptions** (104 `org/sparkproject/io` netty-vendored, 69
-`org/apache/spark`), against the runbook's expected ~36 protobuf failures.
+file` warnings over 26,221 distinct destination paths** (`org/apache/spark/` 19,301;
+`org/sparkproject/io/` 2,593; `org/sparkproject/guava/` 2,017;
+`org/sparkproject/connect/` 2,017; `org/apache/hive/` 126; `META-INF/` 116;
+`org/apache/logging/` 10; 41 elsewhere) — far above the runbook's ~5,700 because
+each module contributes both its shaded and its pre-shade artifact, which duplicate
+every class. **67 AST-creation exceptions**, all under `org/apache/spark`.
 **Limitation: per-class provenance for an overwritten class is not measurable from
 this frontend's output** — the warning names the destination class, never the JAR
 whose definition survived. The ordered staging manifest makes the input set
@@ -602,7 +602,7 @@ unchanged. Do not report these three as broken.
 | 1. toolchain resolves in a fresh non-login shell | **PASS.** `env -i bash --noprofile --norc`, then `. harness/env.sh` (exit 0), then all nine tools plus both JDKs, Maven, Scala and Python reported their versions. `LANG=LC_ALL=C.utf8` |
 | 2. every runner rejects an argument without scanning | **PASS.** Guard confirmed by inspection to be the first executable statement in all nine; all nine exit **64**; `harness/artifacts/{raw,logs}` verified 0/0 entries before **and** after |
 | 3. the pinned tree is the pinned tree | **PASS.** `git -C /opt/spark-src rev-parse HEAD` = `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
-| 4. the graph loads and is covered per module | **PASS.** `importCpg` reports 1,397,339 / 119,691 / 45,037 (the SUPERSEDED graph's counts — appendix S.3); 31 of 31 contributing modules covered (26 unique-class witnesses, 5 named weaker witnesses) |
+| 4. the graph loads and is covered per module | **PASS.** `importCpg` reports 1,398,964 / 119,860 / 45,037; 31 of 31 contributing modules covered as provisioning measured it (26 unique-class witnesses, 5 by the module-exclusive `META-INF/maven` coordinate node). This run's own AAP 0.5.1 measurement of the same graph accepts the 26 and records the other 5 as owning no admissible witness, because their classes and their `pom.properties` are also vendored into `common/network-yarn`'s shaded shuffle uber-jar; `oss-scan-results/build-record.md` section 6 owns that verdict and states the methodological difference |
 | 5. taint is active on Spark's own Scala | **PASS — see below** |
 | 6. all nine scanners across the full scope, one at a time | **PASS — §9 above** |
 
@@ -719,7 +719,7 @@ reports its state with the fixed-token form only.
 |---|---|---|
 | `SEMGREP_APP_TOKEN` | **absent — do not attach** | Semgrep runs as Community Edition; Pro and interfile analysis unavailable. That unlicensed capability is the measurement |
 | `DD_API_KEY`, `DD_APP_KEY` | absent | datadog's AI and secrets paths disabled; rules were fetched anonymously and then **pinned locally**, which is what closes the reproducibility gap |
-| `NVD_API_KEY` | absent | keyless datafeed used; seeded in 896 s. Dependency-Check aborts on an *empty* key (`Invalid API Key, length of 0 too short`), so leave it unset rather than set to `""` |
+| `NVD_API_KEY` | absent | keyless datafeed used; seeded in 976,188 ms. Dependency-Check aborts on an *empty* key (`Invalid API Key, length of 0 too short`), so leave it unset rather than set to `""` |
 | Sonatype OSS Index | absent | analyzer disabled, and `--disableOssIndex` is passed explicitly so the disabling is ours and recorded |
 | `GITHUB_TOKEN` | **present** in the provisioning environment | used only for GitHub release/API downloads. Not read by any runner, and never printed |
 
@@ -765,9 +765,9 @@ Named rather than omitted, since an unrecorded value is one the gate cannot chec
    warning names the destination class, never the surviving JAR. Not measurable from
    this frontend's output. The ordered staging manifest makes the input set
    reproducible; the winner map does not exist.
-2. **The datadog ruleset's byte digest against the scanning run's expected value.**
-   Ours is `4f397e81…`, that table says `e70ede30…`. Same content, different
-   serializer; compare on 48 rulesets / 1,093 rules / revision `f76636e4` instead.
+2. **A datadog ruleset identity that agrees with the scanning run's expected value.**
+   The file on disk is `d945a118…` over 51 rulesets / 1,117 rules; that table says
+   `e70ede30…` over 48 / 1,093. Neither agrees: NOT COMPARABLE, appendix S.6.
 3. **A taint-free Opengrep arm.** No flag disables taint entirely, so the OFF arm is
    intraprocedural. The A/B is still decisive (four lines and all `codeFlows` exist
    only in the ON arm).
@@ -811,16 +811,16 @@ git                      2.51.0
 ```
 opengrep-rules commit    f1d2b562b414783763fd02a6ed2736eaed622efa    2006 rules (58 configs)
 semgrep-rules commit     40b8c63f75dc7c22c8a77482d73bfb864b146f7e    2149 rules, 19 Pro-only skipped (60 configs)
-datadog SAST ruleset     sha256 4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1    48 rulesets / 1093 rules
+datadog SAST ruleset     sha256 d945a118d03fba3a50d1c23363b9f38d5f5291814d508c8d3346754cc7dc6ebf    51 rulesets / 1117 rules (7499997 bytes, NOT COMPARABLE - appendix S.6)
 gitleaks rules           built into 8.30.1, not separately versioned
 checkov policies         bundled with 3.3.12, not separately versioned
 ```
 
 **Vulnerability data**
 ```
-trivy vuln DB            v2, UpdatedAt 2026-08-24T06:55:32.451220873Z
-trivy java DB            v1, UpdatedAt 2026-08-24T01:07:04.599776272Z
-dependency-check NVD     keyless NIST JSON 2.0 datafeed, NVD API Last Modified 2026-08-24T08:00:04-04
+trivy vuln DB            v2, UpdatedAt 2026-09-02T20:01:19.708956607Z    trivy.db 1336410112 bytes
+trivy java DB            v1, UpdatedAt 2026-09-02T01:07:52.720279557Z    trivy-java.db 1515495424 bytes
+dependency-check NVD     keyless NIST JSON 2.0 datafeed, NVD API Last Modified 2026-09-02T20:00:09-04, odc.mv.db 248520704 bytes
 osv-scanner              no local database, queries https://api.osv.dev at scan time
 ```
 
@@ -838,17 +838,17 @@ scope expansion          18 directories / 4095 files (832 of them python/pyspark
 **Graph**
 ```
 path                     /opt/blitzy-harness/cpg/spark.cpg  (harness/cpg/spark.cpg is a symlink to it)
-methods                  1396899
-type declarations        119721
+methods                  1398964
+type declarations        119860
 files                    45037
-internal methods         1307112
-bytes                    541309809
-sha256                   4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
-heap needed              -J-Xmx64g under JDK 21, peak sampled RSS 66.6 GB
-build elapsed            50m42s
+internal methods         1308974
+bytes                    547980224
+sha256                   325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+heap needed              -J-Xmx64g under JDK 21, peak sampled RSS 61 GB
+build elapsed            31m23s
 input set                62 JARs from 31 modules (main + original- pre-shade sibling each); -tests and connect-shims JARs excluded by instruction
-overwrite warnings       31598 over 26221 distinct class files
-AST-creation failures    173
+overwrite warnings       31598 over 26221 distinct destination paths
+AST-creation failures    67
 ```
 
 **Build outcome**
@@ -1024,21 +1024,205 @@ inline pointer to this section and its current owner's value below:
 ## S.4 What this appendix does not re-anchor
 
 Everything else in this record — the host, the toolchain and scanner versions, the
-ruleset commits and rule counts, the vulnerability-feed timestamps, the pinned Spark
-tree and its allowlist and scope expansion, the build outcome, the taint A/B, and the
-per-tool exit/elapsed/finding figures — **remains the 2026-08-24 provisioning's and is
-deliberately left as written.** Those fields are anchored by the request's own
-expected-values table: where an observation differs from them, the correct outcome is to
-record both values as a recorded difference, not to rewrite the record. Several of them
-*do* differ after the 2026-08-30 re-provisioning — `provision-log/rulesets-feeds.txt`
-records the Trivy vulnerability and java DB timestamps and the Dependency-Check NVD
-`Last Modified` as **NEWER** than this file's, and the Datadog SAST ruleset as **53
-rulesets / 1,147 rules**, sha256 `c5fd464c…`, against this file's 48 / 1,093 — and every
-one of those differences belongs to that recorded-difference class and to the run records
-that carry it, not to this finding.
+pinned Spark tree and its allowlist and scope expansion, the build outcome, the taint
+A/B, and the per-tool exit/elapsed/finding figures — **remains the 2026-08-24
+provisioning's and is deliberately left as written.** Those fields are anchored by the
+request's own expected-values table: where an observation differs from them, the correct
+outcome is to record both values as a recorded difference, not to rewrite the record.
+**Two classes named here have since been re-anchored instead, by S.6:** §4's datadog
+ruleset identity and its three vulnerability-feed identities. S.4 left them as
+differences carried by the run records; the 2026-09-03 re-provisioning made §4's
+statements describe data absent from the host it names, so S.6 re-anchors those fields
+to the live provisioned state and keeps every superseded value — including the
+`c5fd464c…` capture at 53 rulesets / 1,147 rules this paragraph originally cited — with
+its provenance. The two ruleset commits are unchanged and needed no re-anchor.
 
 The graph block was different in exactly one respect that made this correction the right
 outcome rather than the wrong one: **its fields are unanchored by the expected-values
 table**, so the only owner available for them is the write-time record beside the graph,
 and a record that cites that owner while contradicting it can only mislead every reader
 and every gate downstream of it.
+
+## S.5 The 2026-09-03 re-anchor — the third graph this record has described
+
+The host was **re-provisioned again on 2026-09-03T01:17:07Z** and the graph was rebuilt
+a third time. `/opt/blitzy-harness/provision-log/cpg-identity.txt` (written 02:11) and
+`cpg-record.txt` (written 02:33) both state **547,980,224 bytes /
+`325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`**, and the graph on
+disk measures the same: `stat -Lc %s "$HARNESS_CPG"` printed **547980224** and
+`sha256sum "$(readlink -f "$HARNESS_CPG")"` printed
+**`325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`**, both before
+anything in this file was edited. §7's six identity/count rows, its two write-fact rows,
+its verification and frontend-metric paragraphs, §12's gate row 4 and the eight values
+in the inline **Graph** block have been re-anchored to that owner. **No line was
+inserted into or deleted from lines 1-1044**, because other documents cite this file by
+line number; the corrections are in place and this section is appended after the
+previous last line.
+
+**Why a clone did this rather than reporting it.** Until it was done, the graph's three
+records of account disagreed — the two provisioning files stated the graph on disk while
+§7 stated its predecessor — and `harness/lib/preflight_graph_identity.py` therefore
+exited **77 VERDICT: HALT**, refusing every Joern load, so Stage 3 could produce no
+artifact at all (`./harness/bin/run-joern.sh` exited 78 without loading anything). This
+record is REFERENCE under AAP 0.6.1 and a clone does not normally touch it; the
+authority for this one edit is explicit and external — this run's clone instantiation
+instructions name the disagreement as the KNOWN OPEN ITEM and direct that it be cleared
+by re-anchoring **`ENVIRONMENT.md` §7, `MANIFEST.json` `.cpg` and the graph figures in
+`run-record.md`/`build-record.md` together in one act**, then re-running Stage 3 and the
+normalizer. Provisioning replaced the graph; the record's half of that same act is what
+was delegated here, and it is recorded as a divergence from 0.6.1 in
+`oss-scan-results/run-record.md` rather than performed silently.
+
+| Field | Superseded — 2026-09-01 generation (was in §7) | Current — 2026-09-03 write-time owner, now in §7 |
+|---|---|---|
+| Bytes | 541,309,809 | **547,980,224** |
+| sha256 | `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | **`325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`** |
+| Methods | 1,396,899 | **1,398,964** (+2,065, 0.15%) |
+| Internal methods | 1,307,112 | **1,308,974** (+1,862) |
+| Type declarations | 119,721 | **119,860** (+139) |
+| Files | 45,037 | **45,037** — unchanged across all three generations |
+| Heap used / peak RSS | `-J-Xmx64g`, peak sampled RSS 66.6 GB | **`-J-Xmx64g`, peak sampled RSS 61 GB** |
+| Elapsed / write window | 50 m 42 s (18:28:00Z → 19:18:42Z) | **31 m 23 s (2026-09-03T01:40:31Z → 02:11:54Z)** |
+| AST-creation exceptions | 173 (104 `org/sparkproject/io`, 69 `org/apache/spark`) | **67, all `org/apache/spark`** |
+| Overwrite warnings | 31,598 over 26,221 distinct paths | **31,598 over 26,221 distinct paths** — unchanged; the input set is the same 62 archives |
+
+The AAP method floor is unaffected and the direction is recorded rather than
+interpreted: **1,398,964 is 1.64× the 853,420 lower bound**, and AAP 0.9.2's threshold
+is one-sided, so a count above the anchor is recorded and never halted. A reader meeting
+**541,309,809** or **`4616845a…`** in this tree is looking at the 2026-09-01 generation,
+and **541,255,894** or **`26d327cc…`** at the 2026-08-24 one; neither is on disk.
+
+**What S.5 does not re-anchor.** Everything S.4 lists stayed as written when S.5 was
+written, with one field added to that class by that re-provisioning: the Datadog SAST
+ruleset now on disk is **`d945a118d03fba3a50d1c23363b9f38d5f5291814d508c8d3346754cc7dc6ebf`,
+7,499,997 bytes, 51 rulesets / 1,117 rules**, a fourth identity for that file. The
+6,832 datadog rows in the dataset were produced from the capture the runner actually
+read, which is preserved in this tree at
+`harness/artifacts/logs/datadog-sast-rules.captured.json`
+(`c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322`, 4,068,707 bytes,
+53 rulesets / 1,147 rules), so those rows remain traceable to an input on disk at a
+recorded digest. `oss-scan-results/tool-status.md` carries all four identities, **S.6
+below re-anchors §4 to identity four**, and both mark those counts NOT COMPARABLE.
+
+## S.6 The 2026-09-03 re-anchor of §4 — the rulesets and the feeds
+
+Section 4 is a record of the rulesets and vulnerability feeds **this host holds**, and
+the host was re-provisioned at **2026-09-03T01:17:07Z**
+(`/opt/blitzy-harness/provision-log/rulesets-feeds.txt`, its header line). Every field
+§4 states was replaced by that re-provisioning except the two ruleset commits, so §4 as
+written described data that is no longer on the host it names. S.4 above declared those
+fields deliberately left as the earlier provisioning wrote them; that disposition is
+**superseded by this section**, which owns §4's ruleset and feed fields and which keeps
+every superseded value with its provenance rather than discarding it.
+
+Nothing on the host was written to produce this section. `$DD_SAST_RULES_FILE`, both
+Trivy metadata files, `odc.mv.db` and the provision log were read, hashed and counted,
+never modified. No scanner was re-run: §9's per-tool exit, elapsed and finding figures
+are the scanning run's own and are untouched, and this section changes what the reader
+knows about the *inputs*, not what any tool reported.
+
+### S.6.1 The datadog SAST ruleset — four identities, and why the counts are not comparable
+
+The path `$DD_SAST_RULES_FILE` is shared and mutable, and four identities of it are on
+the record. All four are kept; none is reconciled into another.
+
+| # | Identity | Rulesets / rules | Bytes | Provenance, and what it is |
+|---|---|---|---|---|
+| 1 | `e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7` | 48 / 1,093 | — | The scanning run's **expected-values table** (AAP 0.4.2). It governs the field it carries; no capture on this host has matched it |
+| 2 | `4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1` | 48 / 1,093 | — | What **this record stated at §4 line 111 and line 814 until this re-anchor**, written by the provisioning of 2026-08-24 |
+| 3 | `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322` | 53 / 1,147 | 4,068,707 | The capture the runner **actually read**, at the shared path as it stood on 2026-08-30T17:51:40Z (`harness/artifacts/logs/datadog-sast-rules.captured.meta.json`). The gate printed this digest from that path (`gate-record.json`, check `gate.ruleset_identity.datadog-static-analyzer`, `stdout`), and the bytes are retained in-tree at `harness/artifacts/logs/datadog-sast-rules.captured.json`. **The 6,832 datadog rows in the dataset come from this one** |
+| 4 | `d945a118d03fba3a50d1c23363b9f38d5f5291814d508c8d3346754cc7dc6ebf` | 51 / 1,117 | 7,499,997 | **Live on the host, and what §4 now states.** Captured anonymously at 2026-09-03T01:03:19Z (`/opt/blitzy-harness/rules/datadog/datadog-sast-rules.meta.json`) and proven offline at `#static analysis rules : 1117` (`provision-log/rulesets-feeds.txt`). Read by **no** invocation in this run |
+
+Measured directly from identity 4 rather than taken from its sidecar: 51 top-level
+rulesets, 1,117 rules, **13 distinct languages** (APEX, BASH, CSHARP, GO, JAVA,
+JAVASCRIPT, KOTLIN, PHP, PYTHON, RUBY, RUST, SWIFT, TYPESCRIPT) and **0 Scala rules** —
+so the reach caveat §9 records for this tool still holds on the current ruleset, for the
+same reason and with a different count.
+
+**Comparability: NOT COMPARABLE WITH THE REHEARSAL.** AAP 0.4.2 requires that mark
+whenever an observed ruleset identity differs from the expected one, and here the digest,
+the ruleset count and the rule count all differ in every pairing above. A different rule
+set produces a different count for reasons that have nothing to do with the code, so
+this tool's 6,832 findings must not be read against the rehearsal's figure. AAP 0.9.3
+makes that a recorded difference and not a halt: the disposition is
+**record-and-continue**, and **datadog was not re-run** for this correction.
+
+**The named reproducibility gap.** The ruleset is fetched from Datadog's API at capture
+time — `/api/v2/static-analysis/default-rulesets/<LANG>` and
+`/api/v2/static-analysis/rulesets/<name>` — and the API publishes **no digest of its
+own**. Every identity above is therefore a digest of *this host's capture* rather than a
+pin the publisher stands behind, which is exactly why two anonymous captures three days
+apart differ in bytes, rulesets and rules. Capturing locally closes the mid-scan fetch
+(the runner reads `-r $DD_SAST_RULES_FILE` and makes no API call) and it does not close
+the gap in the source: a later capture is a different rule set, silently.
+
+**Two statements are retained rather than rewritten, and named here instead.**
+
+| Retained text | As it stands | The live value beside it |
+|---|---|---|
+| §9's per-tool reach entry, lines 510-511, and the inline reach caveat at line 917 | `#static analysis rules : 1093` over 18 subdirectories, "12 languages, 1093 rules", no Scala rules | Those are the 2026-08-24 provisioning's readings of its own scan, and rewriting them would replace one run's observations with another's inside a record that identifies itself by date. Identity 3 — the ruleset the scanning run's own runner read — is 14 languages and 1,147 rules (`datadog-sast-rules.captured.meta.json`); identity 4 is 13 languages and 1,117. The **no Scala rules** finding is true of all three captures |
+| `harness/bin/run-datadog-static-analyzer.sh` line 3, "(48 rulesets / 1,093 rules)" | Still states identity 1/2's counts | **Not corrected, deliberately.** `harness/bin/**` is REFERENCE under AAP 0.6.1 and 0.8.1 states no runner file is edited, so correcting a comment there would be a prohibited runner edit. It is disclosed here so no reader takes it for a current measurement; the runner's behaviour is unaffected, because it reads whatever `$DD_SAST_RULES_FILE` holds and the comment is not consulted |
+
+The two ruleset commits in §4 were **verified and left exactly as written**: the live
+provision record states opengrep-rules `f1d2b562b414783763fd02a6ed2736eaed622efa` with
+2,006 Code rules over 29 rule-bearing top directories (58 `--config` entries) and
+semgrep-rules `40b8c63f75dc7c22c8a77482d73bfb864b146f7e` with 2,149 Code rules and 19
+Pro-only skipped (12 apex + 7 elixir) over 30 directories (60 entries), which is what
+§4 lines 109-110 already state and what the AAP table expects. Both tools' counts stay
+**comparable**; only datadog's do not.
+
+### S.6.2 The three vulnerability feeds — three generations, and what each is
+
+§4 lines 112-114 and the inline **Vulnerability data** block at lines 821-823 now state
+the feeds **on this host**, read from `/opt/blitzy-harness/provision-log/rulesets-feeds.txt`
+and re-measured directly from the caches. Three generations are on the record, and the
+middle one matters most: it is what the scanning run's own runners read.
+
+| Feed | Expected (AAP 0.4.2) | This record before this re-anchor — 2026-08-24 | Read at scan time — 2026-08-30 | Live, and now in §4 — 2026-09-02/03 |
+|---|---|---|---|---|
+| Trivy vulnerability DB | v2, `2026-08-23T06:56:50Z` | v2, `2026-08-24T06:55:32.451220873Z`, 108.98 MiB | v2, `2026-08-30T13:05:01.49156526Z` (downloaded `2026-08-30T17:47:54Z`) | v2, `UpdatedAt 2026-09-02T20:01:19.708956607Z`, `NextUpdate 2026-09-03T20:01:19.708955908Z`, downloaded `2026-09-03T01:00:21.027983542Z`, `trivy.db` **1,336,410,112 B** |
+| Trivy java DB | v1, `2026-08-23T01:05:59Z` | v1, `2026-08-24T01:07:04.599776272Z`, 910.94 MiB | v1, `2026-08-30T01:07:49.364681226Z` (downloaded `2026-08-30T17:48:13Z`) | v1, `UpdatedAt 2026-09-02T01:07:52.720279557Z`, downloaded `2026-09-03T01:00:38.110519509Z`, `trivy-java.db` **1,515,495,424 B** |
+| Dependency-Check NVD | keyless, `2026-08-23T08:00:06-04` | keyless, `2026-08-24T08:00:04-04`, 239 MB `odc.mv.db` | keyless, `2026-08-30T12:00:19-04`, `odc.mv.db` 260,005,888 B written `2026-08-30T17:48Z` | keyless NIST JSON 2.0 datafeed, **NVD API Last Modified `2026-09-02T20:00:09-04`**, seed 976,188 ms, `odc.mv.db` **248,520,704 B** written `2026-09-03T01:16:33Z` |
+
+Provenance, column by column. The expected column is the request's own
+expected-values table. The 2026-08-24 column is what this file stated until this
+re-anchor. The 2026-08-30 column is the reading the **gate** took from the caches the
+runners then used — `harness/artifacts/logs/gate-record.json`, checks
+`gate.feed_identity.trivy` and `gate.feed_identity.dependency-check` — and it is the
+generation `oss-scan-results/severity-map.md` and `oss-scan-results/tool-status.md`
+publish, correctly, as *observed at scan time*. The live column is the current
+provisioning record plus a direct read of `db/metadata.json`, `java-db/metadata.json`
+and `odc.mv.db`; the `Last Modified` string is stated by the provisioning record rather
+than re-readable without opening the H2 database, and is recorded with that provenance.
+
+**Comparability: NOT COMPARABLE WITH THE REHEARSAL, for trivy and dependency-check.**
+Every one of the three generations differs from the expected identity, and a different
+advisory set resolves differently for reasons that have nothing to do with the code.
+Under AAP 0.9.3 this is a recorded difference and not a halt, and the mark applies to a
+count of zero exactly as to a non-zero one: dependency-check's 0 rows and trivy's 3 are
+both unreadable against the rehearsal's figures. **Neither tool was re-run for this
+correction**, so §9's per-tool figures stand as that run measured them.
+
+**Feed state per tool, under AAP 0.4.2's four outcomes**, taken from what each runner
+actually did rather than from what this table holds (source:
+`harness/artifacts/logs/runner-metadata.json`, each tool's `ruleset_or_feed_identity`,
+read from the baked flags in the provisioned runners):
+
+| Tool | Outcome | Why |
+|---|---|---|
+| trivy | **NOT ATTEMPTED** | the runner bakes `--skip-db-update`, `--skip-java-db-update` and `--skip-check-update`, so the seeded caches were used as found |
+| dependency-check | **NOT ATTEMPTED** | the runner bakes `--noupdate` (and `--disableOssIndex`), so no NVD refresh was attempted |
+| osv-scanner | **NOT ATTEMPTED** | it holds no local database and queries `https://api.osv.dev` at scan time, but it resolved zero packages, so no query was made. Its named reproducibility gap stands: a live API with no digest, so its counts are reproducible from nothing on disk |
+| opengrep, semgrep | **NOT ATTEMPTED** | both read a pinned local ruleset directory by commit; no fetch is configured |
+| datadog-static-analyzer | **NOT ATTEMPTED** at scan time | `-r $DD_SAST_RULES_FILE` reads the local capture and makes no API call. The *capture itself* is an API fetch, which is S.6.1's reproducibility gap |
+| gitleaks, checkov | **NOT REPORTED** | neither rule set is separately versioned and neither tool reports a count, so no identity beyond the binary version could be established. Named rather than omitted; the expected-values table carries no count for either |
+
+No feed update was **attempted and failed** anywhere in this run, which is why that
+fourth outcome appears against no tool.
+
+Three lines outside §4 were corrected with these. Line 144's seed figure, and §13's
+`NVD_API_KEY` row at line 722, now state the current seed's own **976,188 ms**
+(`provision-log/dc-nvd-seed.log`, its last line `Check for updates complete
+(976188 ms)`) rather than the previous generation's 896 s. And line 148's evidence list
+named `dc-nvd-seed2.log`, which does not exist on this host — it now names
+`dc-seed-verify.log` and `trivy-seed.log`, which do.

@@ -57,11 +57,26 @@ figure of **this** generation and of no earlier one:
 
 | Field | Value |
 | --- | --- |
-| Publication identifier | `1cbb9d77d199323c62d9da1354f6583b` (`normalize-run.json` `outputs.publication.publication_id`) |
-| `findings.json` | 4,408,640 bytes, sha256 `d4e28c823fd1e76c2158130dc941762e0c6cf23424c0c990c930cc84ece6fc54` |
-| `findings.csv` | 2,081,618 bytes, sha256 `9f646532494fcba3ad95a8e10f15f77957b9f16bea0b486b513e2a830f5445e6` |
-| Rows | 9,430 |
-| Normalizer invocation | started 2026-09-02T22:56:48Z, finished 2026-09-02T22:56:54Z, exit 0 (`normalize-run.json` `started_at_utc`, `finished_at_utc`, `exit_status`) |
+| Publication identifier | `de9ba4ad9855fd92d439de4da7b159d3` (`normalize-run.json` `outputs.publication.publication_id`) |
+| `findings.json` | 4,407,339 bytes, sha256 `339732ed19fad926cb0d6f3da769bc073c5d61585cf82cbefc9c2d0080d8438f` |
+| `findings.csv` | 2,081,058 bytes, sha256 `895d250f120894dcb51ab3e8a006e1ee3bcb1cb2f23a54f343fdfb3069983657` |
+| Rows | 9,427 |
+| Normalizer invocation | started 2026-09-03T09:45:11Z, finished 2026-09-03T09:45:16Z, exit 0 (`normalize-run.json` `started_at_utc`, `finished_at_utc`, `exit_status`) |
+
+**The generation this document rendered before this revision is retained rather
+than erased**, because a superseded figure a reader may still hold has to be
+identifiable as superseded. The host was re-provisioned on 2026-09-03 and the
+graph was rebuilt; the `joern` runner and the normalizer were both re-executed
+over the re-provisioned host that day, so the dataset totals and every
+`joern`-derived figure moved. That re-execution's own evidence is
+`harness/artifacts/raw/joern.json` with `harness/artifacts/logs/joern.status`
+beside it, and the normalizer window in the table above. The earlier publication
+was `1cbb9d77d199323c62d9da1354f6583b` over **9,430** rows, `findings.json`
+4,408,640 bytes / `d4e28c82…ece6fc54` and `findings.csv` 2,081,618 bytes /
+`9f646532…30f5445e6`, normalized 2026-09-02T22:56:48Z → 22:56:54Z. **Every figure
+in this document is a figure of the publication in the table above**; where the
+two generations differ, the superseded value appears only where it is labelled as
+that generation's, and it is never the live claim.
 
 The publication identifier is **content-derived** — a sha256 over the scheme name
 followed by one `<role>\t<sha256>` line per member in ascending role order,
@@ -332,7 +347,7 @@ tally. Part 2 lists every unmapped literal observed, with its rows.
 
 Every figure in this part is the tally in `harness/artifacts/logs/normalize-run.json`
 under `severity_literals`, rendered. The dataset it describes is
-`oss-scan-results/findings.json` and `oss-scan-results/findings.csv`, **9,430
+`oss-scan-results/findings.json` and `oss-scan-results/findings.csv`, **9,427
 rows** — the publication named above — whose per-tool row counts are the same
 measurement `oss-scan-results/tool-status.md` carries in its inventory table.
 
@@ -344,11 +359,11 @@ assumed:
 | Basis | Rows |
 | --- | --- |
 | `sarif_level` (Table 1) | 6,832 |
-| `label` (Table 2) | 110 |
+| `label` (Table 2) | 107 |
 | `no_vocabulary` (policy) | 2,488 |
 | `cvss_score` (Table 3) | **0** |
 | `unmapped_literal` (policy) | **0** |
-| Total | 9,430 |
+| Total | 9,427 |
 
 Two of those zeros are statements about this run rather than about the policy.
 **No row in this dataset was banded from a CVSS numeric score**, so no score
@@ -364,17 +379,17 @@ vocabulary.
 `no_vocabulary` count above and matches
 `normalize-run.json` `outputs.row_validation.absence_by_optional_field.severity_native`.
 
-Band totals across the dataset, which are the same 9,430 rows grouped the other
+Band totals across the dataset, which are the same 9,427 rows grouped the other
 way:
 
 | `severity_norm` | Rows |
 | --- | --- |
 | Critical | 0 |
 | High | 258 |
-| Medium | 1,386 |
+| Medium | 1,383 |
 | Low | 5,278 |
 | Info | 2,508 |
-| Total | 9,430 |
+| Total | 9,427 |
 
 The `Critical` band is unrepresented: no row of any tool took it. That is a
 count of this dataset and nothing more — it is not read as a statement about any
@@ -409,6 +424,85 @@ declares. **No reader should conclude from the two `Info`-only entries below tha
 the SARIF family lost severity wholesale**: 2,481 rows carry the absence because
 the field that would have banded them is not a field this pipeline is authorised
 to read, and the absence is stated rather than filled from it.
+
+### The declined tallies, and the composition of the `Info` band, counted
+
+The paragraph above states that consequence in prose. This states it as a count,
+because a share of the dataset this size should be checkable rather than read as
+a remark: **2,481 of the 9,427 rows — 26.3% — reach `Info` through the
+`no_vocabulary` path of a SARIF artifact**, and a reader is entitled to the
+per-literal tally behind that figure rather than to the sentence about it.
+
+**What the two artifacts declare in the field the AAP does not authorise.** Each
+result is attributed the `defaultConfiguration.level` of the rule descriptor it
+names — resolved by `ruleIndex` where the result carries one and by `ruleId`
+otherwise — so the tally is per result and not per descriptor, and it sums to the
+rows each artifact contributed:
+
+| tool | Results | `error` declared | `warning` declared | `note` declared | Rows banded from any of it | Band those rows carry |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `opengrep` | 1,319 | 314 | 728 | 277 | 0 | Info on all 1,319 |
+| `semgrep` | 1,162 | 278 | 675 | 209 | 0 | Info on all 1,162 |
+| **both, combined** | **2,481** | **592** | **1,403** | **486** | **0** | Info on all 2,481 |
+
+**That table is what the pipeline declined to read, recorded as a number.** Had
+that field been an authorised source, Table 1 would have banded those 2,481 rows
+`error` → High on 592, `warning` → Medium on 1,403 and `note` → Low on 486. **No
+row of this dataset carries a band from that field, and no figure in this
+paragraph is counted anywhere else in this document**: the three columns are
+properties of the two artifacts, tallied so that the size of the declining is
+visible, and they are neither a dataset count nor a second measurement of one.
+Part 1's tables, boundaries and precedence rules are unchanged by their being
+stated, and none of them could be changed to reduce this share without altering a
+mapping fixed before any output was read.
+
+**The whole `Info` band, by the tool and the ground that put each row in it:**
+
+| Contributing tool | Rows in the `Info` band | Ground for the band | Basis |
+| --- | ---: | --- | --- |
+| `opengrep` | 1,319 | no authorised field source states a severity in the artifact | `no_vocabulary` |
+| `semgrep` | 1,162 | the same ground, on the same measurement | `no_vocabulary` |
+| `checkov` | 6 | the `severity` member is present and null on every failed check | `no_vocabulary` |
+| `gitleaks` | 1 | the record shape defines no severity member at all | `no_vocabulary` |
+| `datadog-static-analyzer` | 20 | the producer stated the SARIF level `none`, which Table 1 bands `Info` | `sarif_level` |
+| **`Info` band total** | **2,508 of 9,427 rows — 26.6%** | four tools by policy, one by a mapped vocabulary | 2,488 `no_vocabulary` + 20 `sarif_level` |
+
+Four things a reader can take from those two tables, each of which the prose
+alone left implicit:
+
+- **A `note` declaration is not an `Info` declaration.** Table 1 bands `note` to
+  Low and only `none` to `Info`, so not one of the 486 note-declaring results
+  would have reached `Info` even had the field been read. The `Info` band those
+  2,481 rows carry follows from the authorised sources stating **nothing**, not
+  from anything either artifact declares.
+- **Which contributors the policy named in advance, and which arrive here by
+  measurement.** The policy names two tools at the no-vocabulary row before any
+  output is read: `gitleaks`, which defines no severity vocabulary at all, and
+  `joern`, which defines none *unless a query defines one*. `joern`'s baked
+  queries do define one in this generation, so its 104 rows take the label path
+  of Table 2 and contribute **no** `Info` row. The other three contributors are
+  measurements rather than policy statements — `checkov`'s member is present and
+  null in the unlicensed configuration, and `opengrep` and `semgrep` state a
+  severity in no field the AAP authorises.
+- **Twenty of the 2,508 `Info` rows — fewer than one in a hundred — reached the
+  band through a mapped vocabulary** rather than through policy: the
+  `datadog-static-analyzer` rows whose producer stated the level `none`. That is
+  precisely why the basis is recorded per row, since the band alone cannot
+  separate those 20 from the other 2,488.
+- **The share follows from the fixed mapping and from what the producers
+  emitted**, in that order and from nothing else. `datadog-static-analyzer`
+  states a level on every result and bands across four literals; `opengrep` and
+  `semgrep` state one in no authorised field and band nowhere. The asymmetry is a
+  property of the artifacts, and reading it as a judgement on any of the three
+  tools would be a comparison this document does not make.
+
+The two declaring-field tallies are counts over
+`harness/artifacts/raw/opengrep.sarif` and `harness/artifacts/raw/semgrep.sarif`,
+the artifacts named above. Every row count, band and basis in both tables is the
+tally in `harness/artifacts/logs/normalize-run.json` under `severity_literals`,
+and the per-artifact `counters` in that same file carry the
+`severity_from_level` / `severity_from_rule_property` / `severity_absent` triples
+the field-source table above closes against.
 
 **An earlier publication of this document reported a High/Medium/Low
 distribution for those two tools**, because the shared SARIF adapter then read
@@ -487,14 +581,32 @@ metadata at `harness/artifacts/logs/datadog-sast-rules.captured.meta.json`); the
 carries. `oss-scan-results/tool-status.md` owns this tool's status contract and
 records the same determination; it is cited here rather than made again.
 
+**A fourth identity for that rule set is now on disk, and it changes the ground
+of the verdict rather than the verdict.** The 2026-09-03 re-provisioning replaced
+the host-global rules file: `harness/ENVIRONMENT.md` records the file now on disk
+as sha256
+`d945a118d03fba3a50d1c23363b9f38d5f5291814d508c8d3346754cc7dc6ebf`, 7,499,997
+bytes, **51 rulesets and 1,117 rules** — a fourth reading of that one path,
+differing from the expected identity, from the reading the gate took and from the
+inherited record. The **6,832 rows tallied above were produced from the capture
+the runner actually read**, preserved in this tree at
+`harness/artifacts/logs/datadog-sast-rules.captured.json` at the `c5fd464c…`
+digest above, so every literal in the table remains traceable to an input on disk
+at a recorded digest. Per AAP 0.4.2 the difference is **recorded and the run
+continues**, and this tool's counts stay **NOT COMPARABLE WITH THE REHEARSAL** —
+now on two grounds rather than one: the rule set the artifact was produced against
+is not the expected one, and the rule set on disk is not even the one the artifact
+was produced against. `oss-scan-results/tool-status.md` and
+`harness/ENVIRONMENT.md` carry all four identities; none is re-measured here.
+
 ## joern
 
-`scanner_class` **sast**. Vocabulary: **label** (Table 2). 107 rows.
+`scanner_class` **sast**. Vocabulary: **label** (Table 2). 104 rows.
 
 | `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
 | --- | --- | --- | --- | --- |
 | `HIGH` | High | `label` | label `HIGH` | 63 |
-| `MEDIUM` | Medium | `label` | label `MEDIUM` | 44 |
+| `MEDIUM` | Medium | `label` | label `MEDIUM` | 41 |
 
 Unmapped literals: **none**.
 
@@ -510,29 +622,46 @@ it:
 | --- | --- | ---: |
 | `joern-process-exec` | `HIGH` | 55 |
 | `joern-unsafe-deserialization` | `HIGH` | 178 |
-| `joern-reflection-forname` | `MEDIUM` | 413 |
+| `joern-reflection-forname` | `MEDIUM` | 411 |
 | `joern-message-digest` | `MEDIUM` | 23 |
-| `joern-cipher-getinstance` | `MEDIUM` | 11 |
+| `joern-cipher-getinstance` | `MEDIUM` | 10 |
 | `joern-xml-factory` | `MEDIUM` | 13 |
 
-Every one of the artifact's **693** finding records carries the declared severity
-of the query that produced it, giving `HIGH` 233 and `MEDIUM` 460 **in the
-artifact** (`harness/artifacts/raw/joern.json`). The row counts in the table
-above are **63 and 44**, over the 107 rows this tool contributed to the dataset:
-this artifact's parse status is `partial` and 586 of its records were rejected
-under the single class `unresolvable_path`, so a rejected record contributes no
-row and therefore no literal. The artifact-side and dataset-side figures are
-different measurements of different things and are not reconciled against each
-other here; the record-level identity `693 = 107 + 586` belongs to
+Every one of the artifact's **690** finding records carries the declared severity
+of the query that produced it, giving `HIGH` 233 and `MEDIUM` 457 **in the
+artifact** (`harness/artifacts/raw/joern.json`, 353,048 bytes, sha256
+`f7f5f60e37aacdbf58ca2bf073c0682efeb81e256a516576b12d55aea8edc926`, the artifact
+the 2026-09-03 Stage 3 run wrote). The row counts in the table above are **63 and
+41**, over the 104 rows this tool contributed to the dataset: this artifact's
+parse status is `partial` and 586 of its records were rejected under the single
+class `unresolvable_path`, so a rejected record contributes no row and therefore
+no literal. The artifact-side and dataset-side figures are different measurements
+of different things and are not reconciled against each other here; the
+record-level identity `690 = 104 + 586` belongs to
 `oss-scan-results/tool-status.md`, which owns it.
+
+**The six query counts, this tool's row count and that identity all moved with
+the 2026-09-03 re-execution**, and the superseded generation's figures are
+retained here so a reader holding them can place them: it reported
+`joern-reflection-forname` 413 and `joern-cipher-getinstance` 11 over **693**
+artifact records — `MEDIUM` 460 in the artifact — and **107** dataset rows split
+63 and 44, under the identity `693 = 107 + 586`. The rejection count is the one
+figure that did not move: 586 records, all under `unresolvable_path`, in both
+generations.
 
 **These are counts over a graph rather than over the source tree**, which is what
 separates this tool from the other eight, and the graph is identified once
-elsewhere rather than described again here. Its identity — 541,309,809 bytes,
-sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` — is
-owned by `harness/artifacts/logs/cpg-identity.txt`, the one record of account for
-it, which also records that those bytes were **written by provisioning and not by
-this run**, over an input set narrower than every JAR the reactor produced; how
+elsewhere rather than described again here. Its identity — **547,980,224 bytes,
+sha256 `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`**, the
+graph the 2026-09-03 re-provisioning rebuilt, measured in
+`harness/artifacts/logs/cpg-verify.log` by the `importCpg` verification load of
+those bytes — is owned by `harness/artifacts/logs/cpg-identity.txt`, the one
+record of account for it, which also records that those bytes were **written by
+provisioning and not by this run**, over an input set narrower than every JAR the
+reactor produced. **The 2026-09-01 generation's pair was 541,309,809 bytes and
+sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`**; a
+reader meeting those two values anywhere is looking at that generation, and they
+are retained here for that recognition and for nothing else. How
 that graph was built, what it covers per module, and every divergence that
 follows are owned by `oss-scan-results/build-record.md` and carried in
 `oss-scan-results/run-record.md`. This document neither restates nor recomputes
@@ -542,12 +671,13 @@ the label path and the boundaries were fixed in advance of any output.
 
 Comparability: **comparable** on query-set identity — the observed query set is
 the expected one, the six bounded structural queries baked into the runner. This
-tool's **counts**, however, are counts over one specific graph, and the graph
-loaded here is not the graph the inherited environment record describes
-(`harness/artifacts/logs/gate-record.json` records both identities), so they must
-not be read against the previous provisioning's figures.
-`oss-scan-results/tool-status.md` and `oss-scan-results/run-record.md` own that
-determination and state both values.
+tool's **counts**, however, are counts over one specific graph, and that graph was
+**rebuilt when the host was re-provisioned at 2026-09-03T01:17:07Z**, superseding
+both earlier generations of it, so they must not be read against any earlier
+provisioning's figures. `harness/artifacts/logs/gate-record.json` records every
+identity involved together with that supersession, and
+`oss-scan-results/tool-status.md` and `oss-scan-results/run-record.md` own the
+determination and state the values.
 
 ## gitleaks
 
@@ -645,6 +775,10 @@ non-zero one: what is not comparable is the figure, whatever it happens to be.
 The observed identity is the reading the gate recorded
 (`harness/artifacts/logs/gate-record.json`), and
 `oss-scan-results/tool-status.md` records the same determination for this tool.
+The shared feed path has since been re-provisioned (2026-09-03T01:17:07Z) to
+NVD API Last Modified 2026-09-02T20:00:09-04 over a 248,520,704-byte `odc.mv.db`;
+`harness/ENVIRONMENT.md` section 4 and its appendix S.6.2 own that generation and
+keep this one as the reading at scan time.
 
 Unmapped literals: **none**.
 
@@ -679,11 +813,15 @@ set, so this tool's three rows and their literal must not be read against the
 rehearsal's figures. The observed identity is the reading the gate recorded
 (`harness/artifacts/logs/gate-record.json`), and
 `oss-scan-results/tool-status.md` records the same determination for this tool.
+The shared cache has since been re-provisioned (2026-09-03T01:17:07Z) to vulnerability
+DB v2 `UpdatedAt` 2026-09-02T20:01:19.708956607Z and java DB v1
+2026-09-02T01:07:52.720279557Z; `harness/ENVIRONMENT.md` section 4 and its appendix
+S.6.2 own that generation and keep this one as the reading at scan time.
 
 ## Every observed literal, in one table
 
 The complete set, for a reader who needs it in one place. Eleven
-`(tool, literal, band, basis, selected entry)` entries over 9,430 rows, plus the
+`(tool, literal, band, basis, selected entry)` entries over 9,427 rows, plus the
 two tools that contributed none.
 
 | tool | `severity_native` | `severity_norm` | Basis | Selected entry | Rows | Unmapped |
@@ -695,21 +833,21 @@ two tools that contributed none.
 | `datadog-static-analyzer` | `note` | Low | `sarif_level` | label `note` | 5,275 | no |
 | `datadog-static-analyzer` | `none` | Info | `sarif_level` | label `none` | 20 | no |
 | `joern` | `HIGH` | High | `label` | label `HIGH` | 63 | no |
-| `joern` | `MEDIUM` | Medium | `label` | label `MEDIUM` | 44 | no |
+| `joern` | `MEDIUM` | Medium | `label` | label `MEDIUM` | 41 | no |
 | `gitleaks` | *absent* | Info | `no_vocabulary` | *none* | 1 | no |
 | `checkov` | *absent* | Info | `no_vocabulary` | *none* | 6 | no |
 | `trivy` | `LOW` | Low | `label` | label `LOW` | 3 | no |
 | `osv-scanner` | *no literal observed* | — | — | — | 0 | — |
 | `dependency-check` | *no literal observed* | — | — | — | 0 | — |
 
-Row total over the eleven literal entries: **9,430**, which is the row count of
+Row total over the eleven literal entries: **9,427**, which is the row count of
 `findings.json` and of `findings.csv`. Every selected entry in this run is a
 **label** entry: `selected_label` carries the literal as observed and the three
 score fields are absent, because no row was banded from a score.
 
 Per tool, the same eleven entries sum to **opengrep 1,319, semgrep 1,162,
-datadog-static-analyzer 6,832, gitleaks 1, checkov 6, trivy 3, joern 107**, with
-**osv-scanner 0 and dependency-check 0** — nine identifiers, 9,430 rows.
+datadog-static-analyzer 6,832, gitleaks 1, checkov 6, trivy 3, joern 104**, with
+**osv-scanner 0 and dependency-check 0** — nine identifiers, 9,427 rows.
 
 ## Unmapped literals
 
@@ -843,17 +981,17 @@ cited here, not made a second time.
 | --- | --- | --- |
 | `opengrep` | comparable | Ruleset commit `f1d2b562b414783763fd02a6ed2736eaed622efa` observed and expected; 2,006 rules against 2,006 |
 | `semgrep` | comparable | Ruleset commit `40b8c63f75dc7c22c8a77482d73bfb864b146f7e` observed and expected; 2,149 rules against 2,149, 19 Pro-only skipped |
-| `datadog-static-analyzer` | **NOT COMPARABLE** | Ruleset sha256 observed `c5fd464c…a354f322` over 53 rulesets and 1,147 rules, expected `e70ede30…ff6c44f7` over 48 rulesets and 1,093 — all three fields differ |
-| `joern` | comparable on query-set identity, **counts NOT COMPARABLE** | The query-set identity observed is the expected one: 6 bounded structural queries baked into the runner. Its counts are counts over one graph, and the graph loaded here is not the graph the inherited environment record describes; `harness/artifacts/logs/gate-record.json` records both identities and `oss-scan-results/tool-status.md` and `oss-scan-results/run-record.md` own the determination |
+| `datadog-static-analyzer` | **NOT COMPARABLE** | Ruleset sha256 observed `c5fd464c…a354f322` over 53 rulesets and 1,147 rules, expected `e70ede30…ff6c44f7` over 48 rulesets and 1,093 — all three fields differ. The file now on disk is a **fourth** identity, `d945a118…7dc6ebf` over 7,499,997 bytes, 51 rulesets and 1,117 rules (`harness/ENVIRONMENT.md`), so the rule set the 6,832 rows were produced against is neither the expected one nor the one on disk; that capture is retained at the `c5fd464c…` digest in `harness/artifacts/logs/datadog-sast-rules.captured.json` |
+| `joern` | comparable on query-set identity, **counts NOT COMPARABLE** | The query-set identity observed is the expected one: 6 bounded structural queries baked into the runner. Its counts are counts over one graph, and that graph was rebuilt when the host was re-provisioned at 2026-09-03T01:17:07Z, superseding both earlier generations of it; `harness/artifacts/logs/gate-record.json` records every identity involved with that supersession, and `oss-scan-results/tool-status.md` and `oss-scan-results/run-record.md` own the determination |
 | `gitleaks` | comparable | The default rule set built into Gitleaks 8.30.1, not versioned separately; observed version equals the expected 8.30.1 |
 | `checkov` | comparable | Policies bundled with Checkov 3.3.12, not versioned separately; observed version equals the expected 3.3.12 |
 | `osv-scanner` | comparable on identity | No local database, the OSV API queried at scan time, observed and expected; no count to compare |
 | `dependency-check` | **NOT COMPARABLE** | Keyless NVD JSON 2.0 feed, `NVD API Last Modified` observed `2026-08-30T12:00:19-04` over a 260,005,888-byte `odc.mv.db`, expected `2026-08-23T08:00:06-04` — seven days apart |
 | `trivy` | **NOT COMPARABLE** | Vulnerability DB v2 observed `2026-08-30T13:05:01.49156526Z` against expected `2026-08-23T06:56:50Z`, java DB v1 observed `2026-08-30T01:07:49.364681226Z` against expected `2026-08-23T01:05:59Z` — both seven days later; both DB versions match |
 
-The three digests in the `datadog-static-analyzer` row are abbreviated for the
-table's width only; all three full values appear in that tool's entry in Part 2 and
-in `oss-scan-results/tool-status.md`.
+The four digests in the `datadog-static-analyzer` row are abbreviated for the
+table's width only; every full value appears in that tool's entry in Part 2 and in
+`oss-scan-results/tool-status.md`.
 
 **Every digest and timestamp above is a reading of the provisioning as this run
 found it**, recorded in `harness/artifacts/logs/gate-record.json` — which carries
@@ -885,7 +1023,7 @@ nothing downstream can check.
 | The native severity vocabulary `osv-scanner` would have used | `osv-scanner` | It wrote no artifact, so no record arrived and no mapping decision was exercised. Table 2 for an ecosystem label and Table 3 for a CVSS entry were the policy in force; which of them a record would have taken is not established by this run, and no vocabulary was attributed to the tool on the strength of what it usually emits |
 | The native severity literals `dependency-check` emits | `dependency-check` | Its artifact carries zero finding records, so no literal was observed. The adapter's handling of this shape's label and score paths is established by the committed fixture named in Part 2, which is a statement about the adapter and not a dataset count |
 | The severity `opengrep` and `semgrep` would state through an authorised source | those two tools | Neither artifact states one: no result carries a `level` and no rule carries `properties.severity` or `properties.problem.severity`, measured as `severity_from_level` 0 and `severity_from_rule_property` 0 in `normalize-run.json`. What their `defaultConfiguration` objects say is not an authorised source and is therefore not reported as their native literal; the absence is stated instead of being filled from an unauthorised field |
-| Behaviour of the `cvss_score` basis on this run's own artifacts | dataset-wide | No artifact exercised it: the basis was recorded 0 times over all 9,430 rows. It is established against the committed derived fixture instead — three of its records take that basis, one of them through the two-candidate selection that records a source and a version — and is stated as such rather than left to look like a path nobody tested |
+| Behaviour of the `cvss_score` basis on this run's own artifacts | dataset-wide | No artifact exercised it: the basis was recorded 0 times over all 9,427 rows. It is established against the committed derived fixture instead — three of its records take that basis, one of them through the two-candidate selection that records a source and a version — and is stated as such rather than left to look like a path nobody tested |
 | Behaviour of the `unmapped_literal` disclosure on this run's own artifacts | dataset-wide | Likewise recorded 0 times. Every literal that arrived was inside a mapped vocabulary |
 
 `oss-scan-results/tool-status.md` carries the values that could not be
@@ -910,27 +1048,27 @@ than two measurements agreeing.
    `normalize-run.json` `totals.rows_by_tool`, in the normalizer's processing
    order: `opengrep` 1,319, `semgrep` 1,162, `datadog-static-analyzer` 6,832,
    `gitleaks` 1, `checkov` 6, `trivy` 3, `osv-scanner` 0, `dependency-check` 0 and
-   `joern` 107, summing to 9,430.
+   `joern` 104, summing to 9,427.
 4. **`findings.json` and `findings.csv` agree** on every severity field, row for
    row: absence is `null` in the one and an empty field in the other, over the
-   same 9,430 rows, with the typed comparison in `normalize-run.json`
-   `output_comparison` reporting 9,430 rows and 113,160 fields compared and no
+   same 9,427 rows, with the typed comparison in `normalize-run.json`
+   `output_comparison` reporting 9,427 rows and 113,124 fields compared and no
    first mismatch.
 5. **The comparability verdicts match `oss-scan-results/tool-status.md`**
    tool for tool: three not comparable on ruleset or feed identity —
    `datadog-static-analyzer`, `trivy`, `dependency-check` — and `joern` not
    comparable on counts against the previous provisioning, on the separate ground
    of a different graph.
-6. **`severity_norm` is absent nowhere** — 0 rows of the 9,430, both as counted
+6. **`severity_norm` is absent nowhere** — 0 rows of the 9,427, both as counted
    over the dataset and as `normalize-run.json`
    `outputs.row_validation.severity_norm_absent` records it — and
    `severity_native` is absent on exactly the 2,488 no-vocabulary rows.
 7. **The field-source counters close against the literals.** `sarif_level` 6,832
-   equals `datadog-static-analyzer`'s `severity_from_level`; `label` 110 equals
-   `joern`'s 107 plus `trivy`'s 3; `no_vocabulary` 2,488 equals the four
+   equals `datadog-static-analyzer`'s `severity_from_level`; `label` 107 equals
+   `joern`'s 104 plus `trivy`'s 3; `no_vocabulary` 2,488 equals the four
    absent-literal entries — 1,319 + 1,162 + 1 + 6 — and equals
    `outputs.row_validation.absence_by_optional_field.severity_native`. The five
-   bases sum to 9,430.
+   bases sum to 9,427.
 
 # What this document does not do
 

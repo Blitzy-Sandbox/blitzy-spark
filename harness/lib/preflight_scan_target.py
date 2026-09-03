@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Pre-scan target gate: refuse to scan a tree that is not the pinned tree, refuse a
-smoke override on the production path, and refuse a harness path value a runner would
-interpolate into a shell or a Python source string.
+smoke override on the production path, refuse a harness path value a runner would
+interpolate into a shell or a Python source string, and refuse to scan at all when either
+artifact tree is missing.
 
 WHY THIS EXISTS AS A SEPARATE, EXECUTABLE STEP
 ==============================================
@@ -22,8 +23,15 @@ requirement can be satisfied from inside the thing that resolves the target:
 * ``harness/bin/run-trivy.sh`` lines 52-53 interpolate ``$TRIVY_CACHE_DIR`` into the text
   of a ``python3 -c`` program. An existing directory whose literal name closes the
   embedded string executes arbitrary Python with the process's ambient environment.
+* ``harness/env.sh`` line 91 runs ``mkdir -p "$HARNESS_RAW_DIR" "$HARNESS_LOG_DIR"
+  "$HARNESS_SCRATCH_DIR" 2>/dev/null || true``, and every runner sources ``env.sh`` before
+  it reaches ``scope_begin``. So ``scope.sh`` lines 68-69's ``-d`` guards -- which are
+  correct code implementing exactly AAP 0.8.1's missing-tree halt -- are handed trees that
+  were created on the way to them, and the mandated halt cannot fire. Measured dead: a
+  runner invoked with ``HARNESS_RAW_DIR`` pointing at a non-existent path completed and
+  left the tree created and populated. The ``|| true`` also swallows a permission failure.
 
-None of those three files may be edited. AAP 0.3.2 forbids runner reconfiguration, 0.8.1
+None of those four files may be edited. AAP 0.3.2 forbids runner reconfiguration, 0.8.1
 states that "the line is the runner's own file and its baked flags: those are never
 edited", 0.6.3 states that "no runner or harness helper is edited", 0.6.1 marks every
 ``harness/bin/`` entry and ``harness/ENVIRONMENT.md`` REFERENCE, and the environment
@@ -46,7 +54,7 @@ invocation that does not read this exit status is not bound by it. That residual
 property of a provisioning that may not be edited from a clone, and it is reported rather
 than papered over.
 
-THE THREE CONTROLS, AND WHY EACH IS STRICTER THAN THE RESOLVER IT GUARDS
+THE FOUR CONTROLS, AND WHY EACH IS STRICTER THAN THE RESOLVER IT GUARDS
 =======================================================================
 1. THE SMOKE OVERRIDE IS REFUSED ON PRESENCE, NOT ON VALUE.
    ``scope.sh`` tests ``[ -n "${HARNESS_SMOKE_TARGET:-}" ]``, so an exported EMPTY value
@@ -100,12 +108,40 @@ THE THREE CONTROLS, AND WHY EACH IS STRICTER THAN THE RESOLVER IT GUARDS
    "$TRIVY_CACHE_DIR/db/metadata.json"`` reading ``sys.argv[1]`` -- instead of
    interpolating environment text into program source.
 
+4. BOTH ARTIFACT TREES MUST ALREADY EXIST, AND THIS GATE NEITHER CREATES NOR CLEARS THEM.
+   AAP 0.8.1: both trees "must already exist and be empty", and "this run neither creates
+   nor clears them: a missing tree is a provisioning failure and a non-empty tree makes an
+   earlier run's artifact indistinguishable from this one's". AAP 0.9.2 lists "either
+   artifact tree missing or non-empty" among the conditions that stop the run.
+
+   The missing half of that halt is dead where it is written, for the reason the fourth
+   bullet above gives, and it cannot be repaired there. So existence is refused here:
+   ``$HARNESS_RAW_DIR`` and ``$HARNESS_LOG_DIR`` are each resolved, reported, and required
+   to be a directory, and a tree that is absent -- or present as something other than a
+   directory -- is a REFUSAL before any runner is reached. Nothing is created and nothing
+   is cleared, which is the same prohibition the defect violates: a gate that repaired the
+   condition it was asked to detect would destroy the evidence of it.
+
+   The NON-EMPTY half is deliberately NOT refused here, and the distinction matters.
+   Emptiness is a statement about a single moment -- "before this run wrote anything" --
+   measured once at the Stage 0 gate and owned by
+   ``harness/artifacts/logs/gate-record.json``, which carries it as a live halt. This gate
+   runs after that moment, on trees this run's own evidence writes into by design, so
+   re-deciding emptiness here would produce a second, later, wrong answer to a question
+   already answered. What is reported instead is each tree's census, with the owning
+   condition named beside it.
+
 ORDER MATTERS, AND IT IS THE ORDER A CALLER MUST OBSERVE TOO
 ============================================================
 The character policy runs BEFORE anything consumes a value: the git checks are attempted
 only once ``SPARK_SRC`` has passed the policy, and are recorded as "not attempted" when it
 has not. A gate that measured first and validated afterwards would already have handed the
 hostile value to a subprocess, and would then have to print it in order to explain itself.
+
+The artifact-tree checks sit between the two: after the policy, because those two values
+are path values and nothing should resolve or ``stat`` them before they are known to be
+ordinary text; before the target checks, because a run whose output trees are missing must
+not reach a runner at all, and a reader should see that before three git measurements.
 
 REFUSING WITHOUT REPEATING THE HOSTILE VALUE
 ============================================
@@ -507,6 +543,206 @@ def check_path_policy() -> tuple[list[Check], dict[str, object]]:
     return checks, detail
 
 
+#: The two artifact trees AAP 0.8.1 requires to EXIST before any runner is invoked, with
+#: the role each one plays after the gate. Order fixed: raw first, because it is the tree
+#: whose containment rule is absolute ("nothing else is ever written into this tree").
+ARTIFACT_TREE_VARS: Final[tuple[tuple[str, str], ...]] = (
+    ("HARNESS_RAW_DIR", "runner-only: exactly one verbatim artifact per tool that writes "
+                        "one, and nothing else, ever"),
+    ("HARNESS_LOG_DIR", "this run's own evidence: per-tool streams and status, plus the "
+                        "durable records for the gate, the build, the graph and "
+                        "normalization"),
+)
+
+
+class TreeCensus(NamedTuple):
+    """What one artifact tree holds, counted without listing what is in it.
+
+    Counts rather than names: ``logs/`` holds well over a hundred files, and a report that
+    enumerated them would bury the verdict it exists to deliver. The counts are what the
+    emptiness condition is decided on, and they are enough for a reader to see at a glance
+    whether a tree is fresh.
+    """
+
+    entries: int
+    files: int
+    directories: int
+    other: int
+    recursive_files: int
+
+
+def census_of(path: Path) -> TreeCensus:
+    """Count what ``path`` holds, top level and recursively. Reads only; creates nothing.
+
+    ``os.scandir`` rather than a glob so a symlinked entry is counted as what it is, and
+    ``follow_symlinks=False`` on the type tests so a link to a directory is not walked out
+    of the tree it appears in -- an artifact tree's census must describe that tree.
+    """
+    entries = files = directories = other = 0
+    recursive = 0
+    # Closed explicitly rather than left to the collector: this gate runs inside runners
+    # and wrappers, and a leaked directory handle in a control is the kind of defect that
+    # only shows up under the load nobody tested.
+    with os.scandir(path) as scan:
+        for item in scan:
+            entries += 1
+            if item.is_dir(follow_symlinks=False):
+                directories += 1
+            elif item.is_file(follow_symlinks=False):
+                files += 1
+            else:
+                other += 1
+    for _, _, filenames in os.walk(path):
+        recursive += len(filenames)
+    return TreeCensus(entries, files, directories, other, recursive)
+
+
+def check_artifact_trees() -> tuple[list[Check], dict[str, object]]:
+    """Require both artifact trees to EXIST as directories before any runner is invoked.
+
+    WHY THIS CONTROL HAS TO LIVE HERE (QA Issue 2)
+    ==============================================
+    AAP 0.8.1 states that both trees "must already exist and be empty" and that "this run
+    neither creates nor clears them: a missing tree is a provisioning failure", and AAP
+    0.9.2 lists "either artifact tree missing" among the conditions that stop the run.
+    ``harness/lib/scope.sh`` lines 68-69 implement exactly that guard --
+    ``[ -d "${HARNESS_RAW_DIR:-}" ] || scope_fail ...`` -- and it is correct code that can
+    never fire for the condition it names, because ``harness/env.sh`` line 91 is::
+
+        mkdir -p "$HARNESS_RAW_DIR" "$HARNESS_LOG_DIR" "$HARNESS_SCRATCH_DIR" 2>/dev/null || true
+
+    and every runner sources ``env.sh`` before it reaches ``scope_begin``. So a missing
+    tree is CREATED on the way to the guard that was supposed to refuse it, the scan
+    proceeds, and the halt AAP 0.8.1 mandates is dead. It was measured dead: a
+    ``run-gitleaks.sh`` invocation with ``HARNESS_RAW_DIR`` pointing at a non-existent path
+    completed with the tool's ordinary findings status and left the tree created and
+    populated. The ``|| true`` additionally swallows a permission failure, so a tree that
+    could not be created is indistinguishable from one that was.
+
+    Neither file may be edited from a clone -- ``harness/env.sh`` and
+    ``harness/lib/scope.sh`` are REFERENCE under AAP 0.6.1/0.6.5 -- so the refusal lives
+    here, ahead of every runner, exactly as the smoke and target controls do. The exact
+    provisioning patch is stated in the VERDICT block's residual and in
+    ``oss-scan-results/run-record.md``.
+
+    WHAT THIS CHECK DOES NOT DO
+    ===========================
+    It creates nothing and clears nothing: that is the same prohibition the defect above
+    violates, and a gate that fixed the condition it was asked to detect would destroy the
+    evidence of it. An existing but NON-EMPTY tree does not refuse here either. Emptiness
+    is AAP 0.8.1's Stage-0 gate condition, measured once "before this run wrote anything"
+    and owned by ``harness/artifacts/logs/gate-record.json``, which carries it as a live
+    halt; re-deciding it here from a filesystem this run has been writing to since would
+    be a second, later, wrong answer to a question already answered. The census is
+    reported so a reader can see the state, and the sentence beside it names the condition's
+    owner.
+    """
+    checks: list[Check] = []
+    detail: dict[str, object] = {}
+    for name, role in ARTIFACT_TREE_VARS:
+        check_id = f"artifact-tree:{name}"
+        expectation = (f"${name} exists as a directory before any runner is invoked "
+                       f"(AAP 0.8.1: a missing tree is a provisioning failure; this run "
+                       f"neither creates nor clears it)")
+        if name not in os.environ:
+            checks.append(Check(
+                check_id, f"${name}", expectation,
+                "not set in the environment -- harness/env.sh lines 25-26 set it, so the "
+                "environment file appears not to have been sourced and there is no tree to "
+                "measure",
+                FAULT))
+            detail[name] = {"present": False, "verdict": FAULT, "role": role}
+            continue
+        value = os.environ[name]
+        path = Path(value)
+        record: dict[str, object] = {
+            "present": True,
+            "value": value,
+            "role": role,
+            "is_symlink": path.is_symlink(),
+        }
+        if path.is_symlink():
+            try:
+                record["symlink_target"] = os.readlink(path)
+            except OSError as exc:
+                record["symlink_target"] = f"unreadable: {exc}"
+        try:
+            exists = path.exists()
+            is_dir = path.is_dir()
+        except OSError as exc:
+            checks.append(Check(
+                check_id, f"${name}", expectation,
+                f"{value} could not be examined: {type(exc).__name__}: {exc}. A tree whose "
+                f"state cannot be measured is not a tree this gate will certify",
+                FAULT))
+            record.update({"verdict": FAULT, "error": f"{type(exc).__name__}: {exc}"})
+            detail[name] = record
+            continue
+        record.update({"exists": exists, "is_directory": is_dir})
+        if not exists:
+            checks.append(Check(
+                check_id, f"${name}", expectation,
+                f"{value} DOES NOT EXIST. AAP 0.9.2 stops the run on a missing artifact "
+                f"tree, and this run may not create it. The condition is refused HERE "
+                f"because it cannot be refused where it is written: harness/env.sh line 91 "
+                f"runs `mkdir -p \"$HARNESS_RAW_DIR\" \"$HARNESS_LOG_DIR\" "
+                f"\"$HARNESS_SCRATCH_DIR\" 2>/dev/null || true` on every runner's source of "
+                f"env.sh, so scope.sh lines 68-69's `-d` guard is passed a tree that was "
+                f"created on the way to it and the mandated halt never fires. Provisioning "
+                f"must leave this tree created and empty",
+                REFUSE))
+            record["verdict"] = REFUSE
+            detail[name] = record
+            continue
+        if not is_dir:
+            kind = ("a symlink whose target is not a directory" if path.is_symlink()
+                    else "not a directory")
+            checks.append(Check(
+                check_id, f"${name}", expectation,
+                f"{value} exists but is {kind}. An artifact tree that is not a directory "
+                f"cannot receive an artifact, and `mkdir -p` on it fails, which is the one "
+                f"shape of this defect scope.sh line 68-69 can still catch (exit 78). "
+                f"Refused here so the outcome does not depend on which of the two got there "
+                f"first",
+                REFUSE))
+            record["verdict"] = REFUSE
+            detail[name] = record
+            continue
+        try:
+            census = census_of(path)
+        except OSError as exc:
+            checks.append(Check(
+                check_id, f"${name}", expectation,
+                f"{value} is a directory but its contents could not be counted: "
+                f"{type(exc).__name__}: {exc}",
+                FAULT))
+            record.update({"verdict": FAULT, "error": f"{type(exc).__name__}: {exc}"})
+            detail[name] = record
+            continue
+        shape = (f"{value} exists and is a directory; census: {census.entries} top-level "
+                 f"entr{'y' if census.entries == 1 else 'ies'} "
+                 f"({census.files} file(s), {census.directories} directory(ies), "
+                 f"{census.other} other), {census.recursive_files} file(s) recursively; "
+                 f"role: {role}")
+        if census.entries:
+            shape += ("; NON-EMPTY, which this check does not refuse: emptiness is AAP "
+                      "0.8.1's Stage-0 condition, measured before this run wrote anything "
+                      "and owned by harness/artifacts/logs/gate-record.json, which carries "
+                      "it as a live halt. Existence is what is refused here")
+        else:
+            shape += "; empty"
+        checks.append(Check(check_id, f"${name}", expectation, shape, PASS))
+        record.update({
+            "verdict": PASS,
+            "census": census._asdict(),
+            "empty": census.entries == 0,
+            "emptiness_condition_owner": "harness/artifacts/logs/gate-record.json "
+                                         "(AAP 0.8.1 Stage-0 gate); not decided here",
+        })
+        detail[name] = record
+    return checks, detail
+
+
 def check_scan_target(spark_src_ok: bool) -> tuple[list[Check], list[GitResult]]:
     """Establish that the tree to be scanned is the pinned tree, or refuse.
 
@@ -682,6 +918,12 @@ def main(argv: list[str] | None = None) -> int:
     checks: list[Check] = [check_smoke_override()]
     path_checks, path_detail = check_path_policy()
     checks.extend(path_checks)
+    # After the character policy, because these two values are path values too and the
+    # policy must clear them before anything resolves or stats them; before the target
+    # checks, because a run whose artifact trees are missing must not reach a runner at
+    # all and the reader should see that before the git measurements.
+    tree_checks, tree_detail = check_artifact_trees()
+    checks.extend(tree_checks)
     spark_ok = bool(
         isinstance(path_detail.get("SPARK_SRC"), dict)
         and path_detail["SPARK_SRC"].get("verdict") == PASS  # type: ignore[union-attr]
@@ -700,11 +942,14 @@ def main(argv: list[str] | None = None) -> int:
     emit()
     emit("  Refuses to invoke any scanner runner unless the tree to be scanned is the")
     emit("  pinned tree, the setup-time smoke override is absent from the environment")
-    emit("  entirely, and every harness path value a runner interpolates is ordinary")
-    emit("  text. harness/lib/scope.sh accepts any SPARK_SRC without comparing HEAD and")
-    emit("  takes HARNESS_SMOKE_TARGET whenever it is non-empty, and neither that file")
-    emit("  nor any runner may be edited (AAP 0.3.2, 0.8.1, 0.6.3), so the control lives")
-    emit(f"  here: a refusal exits {HALT_EXIT} before a caller reaches the runner.")
+    emit("  entirely, every harness path value a runner interpolates is ordinary text,")
+    emit("  and both artifact trees already exist as directories. harness/lib/scope.sh")
+    emit("  accepts any SPARK_SRC without comparing HEAD, takes HARNESS_SMOKE_TARGET")
+    emit("  whenever it is non-empty, and holds a missing-tree guard that harness/env.sh")
+    emit("  line 91's `mkdir -p ... || true` creates the trees ahead of -- and neither")
+    emit("  that file nor any runner may be edited (AAP 0.3.2, 0.8.1, 0.6.3), so the")
+    emit(f"  controls live here: a refusal exits {HALT_EXIT} before a caller reaches the")
+    emit("  runner. Nothing is created, cleared or repaired by this gate.")
     emit()
     emit("  Gate source             : harness/lib/preflight_scan_target.py")
     emit("  Binding callers         : harness/lib/run-scanner-gated.sh (all nine runners),")
@@ -760,18 +1005,62 @@ def main(argv: list[str] | None = None) -> int:
         emit("  The target is the pinned tree, no smoke override is present, and every")
         emit("  path value is ordinary text. A caller may invoke the runner.")
     emit()
-    emit("  RESIDUAL, stated because it cannot be closed from a clone: each")
-    emit("  harness/bin/run-<tool>.sh remains executable in its own right, and an")
-    emit("  invocation that does not read this exit status is not bound by it. In")
-    emit("  particular run-trivy.sh lines 52-53 still interpolate $TRIVY_CACHE_DIR into")
-    emit("  python3 -c source. Closing that at its root is a provisioning change: pass")
-    emit("  the metadata path as positional argv to fixed code instead of interpolating")
-    emit("  environment text into program source.")
+    emit("  RESIDUAL, stated because none of it can be closed from a clone. Every file")
+    emit("  named below is REFERENCE under AAP 0.6.1/0.6.5, so each defect is reported")
+    emit("  with the exact patch provisioning must apply, and each is carried in")
+    emit("  oss-scan-results/run-record.md. The gate above is the compensating control")
+    emit("  for all three, and it compensates only for callers that read its status:")
+    emit("  each harness/bin/run-<tool>.sh remains executable in its own right, and an")
+    emit("  invocation that does not read this exit status is not bound by it.")
+    emit()
+    emit("    1. harness/bin/run-trivy.sh lines 52-53 -- CWE-94. Both lines build a")
+    emit("       python3 -c program by interpolating $TRIVY_CACHE_DIR into its source")
+    emit("       text, so a cache directory whose literal name closes the embedded")
+    emit("       string executes arbitrary Python with the process's ambient")
+    emit("       environment. Proven exploitable at this checkpoint: a crafted value")
+    emit("       created a marker file while the runner still exited 0 and wrote a valid")
+    emit("       artifact, so the compromise leaves no failure signal.")
+    emit("       PATCH: pass the path as positional argv to fixed code instead of")
+    emit("       interpolating environment text into program source --")
+    emit("       python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));")
+    emit("       print(\"v%s UpdatedAt=%s\"%(d[\"Version\"],d[\"UpdatedAt\"]))'")
+    emit("       \"$TRIVY_CACHE_DIR/db/metadata.json\" -- and the same for java-db on :53.")
+    emit("       Mitigated here by the path-text policy above, which refuses every")
+    emit("       shell- and source-significant character in $TRIVY_CACHE_DIR before any")
+    emit("       runner is invoked, and which names that variable in its own diagnostic.")
+    emit()
+    emit("    2. harness/env.sh line 91 -- the missing-tree halt AAP 0.8.1 mandates is")
+    emit("       dead. `mkdir -p \"$HARNESS_RAW_DIR\" \"$HARNESS_LOG_DIR\"")
+    emit("       \"$HARNESS_SCRATCH_DIR\" 2>/dev/null || true` runs on every runner's")
+    emit("       source of env.sh, so scope.sh lines 68-69's correct `-d` guard is")
+    emit("       handed trees that were created on the way to it; and `|| true` also")
+    emit("       swallows a permission failure, making a tree that could not be created")
+    emit("       indistinguishable from one that was.")
+    emit("       PATCH: drop the two artifact trees from the mkdir -p, keeping only")
+    emit("       HARNESS_SCRATCH_DIR (which this run legitimately owns and creates), and")
+    emit("       drop the `|| true`, so a failure to create the scratch directory is")
+    emit("       reported rather than hidden: `mkdir -p \"$HARNESS_SCRATCH_DIR\"`.")
+    emit("       Provisioning leaves raw/ and logs/ created and empty; this run neither")
+    emit("       creates nor clears them. Mitigated here by the artifact-tree checks")
+    emit("       above, which refuse an absent or non-directory tree before any runner.")
+    emit()
+    emit("    3. harness/env.sh lines 19-22 -- both preflight gates' documented override")
+    emit("       is destroyed by sourcing the environment. HARNESS_DIR and")
+    emit("       HARNESS_REPO_ROOT are assigned UNCONDITIONALLY while 27 other exports")
+    emit("       use ${VAR:-default}, so a caller who exports HARNESS_REPO_ROOT to point")
+    emit("       a gate at a specific checkout has it silently overwritten the moment")
+    emit("       env.sh is sourced -- which is what every runner and every documented")
+    emit("       shell does. Both gates implement and document that override")
+    emit("       (preflight_scan_target.py repo_root, preflight_graph_identity.py")
+    emit("       repo_root), and it works only in a shell that has NOT sourced env.sh.")
+    emit("       PATCH: `export HARNESS_DIR=\"${HARNESS_DIR:-$(cd \"$(dirname")
+    emit("       \"$_harness_self\")\" && pwd)}\"` and the same shape for")
+    emit("       HARNESS_REPO_ROOT, matching the other 27 exports.")
     emit()
 
     record = {
         "gate": "harness/lib/preflight_scan_target.py",
-        "findings_addressed": ["SEC-01", "SEC-03"],
+        "findings_addressed": ["SEC-01", "SEC-03", "QA Issue 2", "QA Issue 12"],
         "checked_at_utc": started,
         "clone_index": os.environ.get("BLITZY_CLONE_INDEX", "0"),
         "repository_root": str(root),
@@ -786,6 +1075,15 @@ def main(argv: list[str] | None = None) -> int:
         "fault_count": len(faults),
         "checks": [check._asdict() for check in checks],
         "path_policy": path_detail,
+        "artifact_trees": tree_detail,
+        "artifact_tree_policy": (
+            "existence as a directory is REFUSED on absence (AAP 0.8.1/0.9.2, QA Issue 2: "
+            "env.sh line 91's `mkdir -p ... || true` runs on every runner's source of "
+            "env.sh, so scope.sh lines 68-69's -d guard cannot fire for a missing tree). "
+            "Neither tree is created or cleared by this gate. A tree that exists and is "
+            "non-empty does NOT refuse here: emptiness is the Stage-0 gate condition owned "
+            "by harness/artifacts/logs/gate-record.json"
+        ),
         "git_invocations": [
             {"argv": list(run.argv), "exit": run.returncode,
              "stdout": run.stdout, "stderr": run.stderr}
@@ -793,10 +1091,64 @@ def main(argv: list[str] | None = None) -> int:
         ],
         "residual": (
             "harness/bin/run-<tool>.sh remains directly executable and is not bound by "
-            "this exit status; run-trivy.sh lines 52-53 interpolate $TRIVY_CACHE_DIR into "
-            "python3 -c source. Provisioning fix: pass the metadata path as positional "
-            "argv to fixed Python code."
+            "this exit status, so the three defects below are compensated for rather than "
+            "closed. Every file named is REFERENCE under AAP 0.6.1/0.6.5 and each patch "
+            "belongs to provisioning; all three are carried in "
+            "oss-scan-results/run-record.md."
         ),
+        "residual_provisioning_defects": [
+            {
+                "id": "QA Issue 10 / SEC-03",
+                "location": "harness/bin/run-trivy.sh lines 52-53",
+                "class": "CWE-94 code injection",
+                "defect": "$TRIVY_CACHE_DIR is interpolated into the source text of a "
+                          "python3 -c program, so a directory name that closes the "
+                          "embedded string executes arbitrary Python; proven exploitable "
+                          "with the runner still exiting 0 and writing a valid artifact",
+                "patch": "pass the metadata path as positional argv to fixed code -- "
+                         "python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));"
+                         "print(\"v%s UpdatedAt=%s\"%(d[\"Version\"],d[\"UpdatedAt\"]))' "
+                         "\"$TRIVY_CACHE_DIR/db/metadata.json\" -- and the same for "
+                         "java-db on line 53",
+                "compensating_control_here": "path-policy:TRIVY_CACHE_DIR refuses every "
+                                             "shell- and source-significant character "
+                                             "before any runner is invoked",
+            },
+            {
+                "id": "QA Issue 2",
+                "location": "harness/env.sh line 91",
+                "class": "AAP 0.8.1/0.9.2 mandated halt unreachable",
+                "defect": "mkdir -p \"$HARNESS_RAW_DIR\" \"$HARNESS_LOG_DIR\" "
+                          "\"$HARNESS_SCRATCH_DIR\" 2>/dev/null || true runs on every "
+                          "runner's source of env.sh, so scope.sh lines 68-69's -d guard "
+                          "is handed trees created on the way to it and the missing-tree "
+                          "halt cannot fire; || true also swallows permission failures",
+                "patch": "drop the two artifact trees from the mkdir -p, keeping only "
+                         "HARNESS_SCRATCH_DIR, and drop the || true: "
+                         "mkdir -p \"$HARNESS_SCRATCH_DIR\"",
+                "compensating_control_here": "artifact-tree:HARNESS_RAW_DIR and "
+                                             "artifact-tree:HARNESS_LOG_DIR refuse an "
+                                             "absent or non-directory tree, and create "
+                                             "and clear nothing",
+            },
+            {
+                "id": "QA Issue 18 / D23 / P5-1",
+                "location": "harness/env.sh lines 19-22",
+                "class": "configuration: a documented override destroyed by sourcing",
+                "defect": "HARNESS_DIR and HARNESS_REPO_ROOT are assigned "
+                          "unconditionally while 27 other exports use ${VAR:-default}, so "
+                          "both preflight gates' documented HARNESS_REPO_ROOT override is "
+                          "silently overwritten in exactly the shells the runners use",
+                "patch": "export HARNESS_DIR=\"${HARNESS_DIR:-$(cd \"$(dirname "
+                         "\"$_harness_self\")\" && pwd)}\" and the same shape for "
+                         "HARNESS_REPO_ROOT",
+                "compensating_control_here": "none available: a gate cannot restore a "
+                                             "value the environment file overwrote before "
+                                             "the gate started. Reported only, and the "
+                                             "override remains usable in a shell that has "
+                                             "not sourced env.sh",
+            },
+        ],
         "value_disclosure_policy": (
             "a value that passes the character policy is recorded in full (path text, "
             "which AAP 0.1.3 excludes from secrets); a refused value is recorded only by "

@@ -4896,7 +4896,7 @@ class ErrataConformanceTests(SarifAdapterTestCase):
 # Markdown records rendered from them and the run logs -- CWE-176 for the decode that is
 # not revalidated, CWE-117 for where the decoded value arrives.
 #
-# Measured over the committed dataset before the guard was written: of 9,430 rows, none
+# Measured over the committed dataset before the guard was written: of 9,427 rows, none
 # carries a control character in ``path`` and none carries a ``%`` either, so no
 # percent-encoded sequence exists in this provisioning's output for the guard to decode
 # or refuse. That is why every case below is authored or derived, and why the guard's

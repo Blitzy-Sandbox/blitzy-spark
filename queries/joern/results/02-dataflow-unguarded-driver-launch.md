@@ -22,16 +22,16 @@ of any Spark configuration.
 | --- | --- |
 | Query source | `queries/joern/02-dataflow-unguarded-driver-launch.sc` |
 | Query source sha256 | `902b7ffe8d708d6cb4ddfc057f65b1a2a023fc90c5b55c8d3ba012885dcb3fd1` (369754 bytes) |
-| Publication id | `4f331b6f1163bdb3943f79bcb1937600719f1f4423fdf97aac6e2f72be1b0d1e` |
+| Publication id | `7a07b7184af2306b1a7c97a3c02b7b53f52358b45718384814df0915e14fb559` |
 | Envelope | `queries/joern/results/02-dataflow-unguarded-driver-launch.json` |
 | Console log | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` |
 | Loader | `importCpg` into a switched workspace (`queries/joern/.workspace`) |
 | JDK major | 21 |
 | Heap actually used | 68719476736 bytes (floor 68719476736) |
-| Graph | 541309809 bytes, sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` |
+| Graph | 547980224 bytes, sha256 `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` |
 | Graph identity re-verified before the load | yes, against `provision-log/cpg-identity.txt` |
 | Bytes actually imported | a private copy this run made, digested in the copy pass, verified against that record, and re-verified by digest and inode after the load |
-| Graph methods / typeDecls / files | 1396899 / 119721 / 45037 |
+| Graph methods / typeDecls / files | 1398964 / 119860 / 45037 |
 | Flow engine semantics | `io.joern.dataflowengineoss.semanticsloader.FullNameSemantics` |
 | Compile status | compiled |
 | Run status | completed |
@@ -49,7 +49,7 @@ verified that the file it digested declares this query's own identifier, and it
 refuses to publish anything if it does not.
 
 The envelope beside this report carries the same digest and the same publication
-identifier `4f331b6f1163bdb3943f79bcb1937600719f1f4423fdf97aac6e2f72be1b0d1e`, as does the console log. Every figure below was
+identifier `7a07b7184af2306b1a7c97a3c02b7b53f52358b45718384814df0915e14fb559`, as does the console log. Every figure below was
 measured during that run from the graph, from this source's own text, from the
 identity record or from the repository's commit history for this source path -
 nothing here is transcribed from another document or from a previous run. **A
@@ -146,7 +146,7 @@ cap that governs several sweeps cannot report the state of only one of them.
 | parameters: entry | `MAX_TYPE_SCAN` | 100000 | 10 | false |
 | ARM 2: calls named driverDescription | `MAX_CALL_SCAN` | 200000 | 12 | false |
 | ARM 2 fallback: calls inside the entry methods | `MAX_CALL_SCAN` | 200000 | 1978 | false |
-| sink: calls named start | `MAX_CALL_SCAN` | 200000 | 1234 | false |
+| sink: calls named start | `MAX_CALL_SCAN` | 200000 | 1233 | false |
 | sink: receiver operands of the launch call sites | `MAX_CALL_SCAN` | 200000 | 2 | false |
 | sink: argument operands of the launch call sites | `MAX_CALL_SCAN` | 200000 | 2 | false |
 | predicate: type declarations | `MAX_TYPE_SCAN` | 100000 | 2 | false |
@@ -460,7 +460,7 @@ Their results are reported side by side and are **never summed**.
    The commits counted, newest first, so the number is auditable rather than
    asserted:
 
-   - `d3bc40ae290877827cbd422ba9025a4f54328ec0`
+   - `0e3e742a5ad2cb057fd2ebafb6f6a0137c82d21b`
    - `232d0d9cca3f15d33cedb96fa18dac3c6602668b`
    - `675f691eca921b2b7114029d97103ee8838a91b8`
 

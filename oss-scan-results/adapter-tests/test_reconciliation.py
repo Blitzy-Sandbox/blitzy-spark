@@ -518,8 +518,8 @@ def adapt_mixed() -> Adapted:
 #: A message carrying an embedded newline, a comma and a double quote -- the three
 #: characters that make a CSV field span physical lines and need quoting. Derived for the
 #: line-count assertion rather than taken from an artifact, because no committed fixture's
-#: message carries a newline while the dataset's do: ``findings.csv`` holds 9,430 rows over
-#: 9,439 physical lines, so a row count taken from lines is wrong by construction. It
+#: message carries a newline while the dataset's do: ``findings.csv`` holds 9,427 rows over
+#: 9,436 physical lines, so a row count taken from lines is wrong by construction. It
 #: carries no secret and no tool's real output.
 MULTILINE_MESSAGE = (
     'the finding message continues on a second line, with a comma\n'
@@ -3369,7 +3369,7 @@ class CliOutputWriteTests(CliTestCase):
     Neither file is derived from the other after writing, and equality is asserted by
     parsing both and coercing the CSV cells to the types their fields carry. A row count is
     established by parsing and never by counting lines, because ``message`` fields carry
-    embedded newlines: ``findings.csv`` holds 9,430 rows over 9,439 physical lines, and the
+    embedded newlines: ``findings.csv`` holds 9,427 rows over 9,436 physical lines, and the
     gap widens with every multi-line message a scanner reports.
     """
 
@@ -4137,8 +4137,8 @@ class PathsNotOnDiskMeasurementTest(unittest.TestCase):
     and counted by the second.
 
     A zero is the expected result for this dataset, which is exactly why the denominator
-    matters: ``count 0`` beside ``rows_examined 9430`` states that nothing was found among
-    9,430 rows, whereas an absent field states nothing at all.
+    matters: ``count 0`` beside ``rows_examined 9427`` states that nothing was found among
+    9,427 rows, whereas an absent field states nothing at all.
     """
 
     def setUp(self) -> None:
@@ -5160,7 +5160,7 @@ class SharedRowWriterContractTest(unittest.TestCase):
     AAP 0.6.1 requires *"both writers consume the same validated rows"*, which is what makes
     the typed re-parse comparison an assertion about one row set rather than about two. A
     defensive copy in either writer would quietly weaken it, and a gratuitous copy of the
-    9,430-row list buys nothing: the writers only read.
+    9,427-row list buys nothing: the writers only read.
     """
 
     def setUp(self) -> None:

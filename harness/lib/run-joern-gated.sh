@@ -1,48 +1,108 @@
 #!/usr/bin/env bash
-# run-joern-gated.sh — a committed gated execution path for Stage 3, now redundant.
+# run-joern-gated.sh — one of the two paths that supply Stage 3's identity comparison and
+# its 64 GiB child heap from OUTSIDE the provisioned runner, which supplies neither.
 #
-# WHAT THIS SCRIPT IS, AS OF THE RUNNER'S SELF-BINDING
-# ----------------------------------------------------
+# WHAT THE PROVISIONED RUNNER DOES, AND THE TWO THINGS IT DOES NOT DO
+# -------------------------------------------------------------------
 # AAP 0.8.2 requires the graph's identity re-verified immediately before every load, and
-# 0.6.4 requires each check logged. This file was written on the reading that neither
-# could be satisfied from inside the Stage 3 path — that harness/bin/run-joern.sh printed
-# its input's size and digest and then invoked Joern without comparing them, and that
-# editing the runner was forbidden, so the check could not live in the thing it guards.
+# 0.6.4 requires each check logged. Neither can be satisfied from inside the runner:
+# harness/bin/run-joern.sh is PROVISIONED, and AAP 0.6.1 lists every entry in harness/bin/
+# as REFERENCE — read and classified, never written — 0.8.1 says a runner's own file and
+# its baked flags are never edited, and 0.3.2 makes a shortfall in a runner "a condition to
+# record, not a defect to repair". So the check cannot live in the thing it guards, and it
+# lives outside it instead. Both statements below are read off the runner as provisioned
+# (76 lines, 3,380 bytes, sha256
+# 32dd647af10709b72d159d67a2b15bd6f1f258af97614a9d2bf577c7a1abe65f):
 #
-# THAT IS NO LONGER TRUE, AND THE PROSE THAT SAID IT WAS HAS BEEN CORRECTED HERE. QA
-# found that a gate nothing on the canonical path reads does not bind that path, so the
-# comparison now lives in the runner itself: harness/bin/run-joern.sh runs
-# harness/lib/preflight_graph_identity.py --check-only against the HARNESS_CPG it is
-# about to open, echoes the whole report to its own stdout, keeps a copy at
-# $HARNESS_LOG_DIR/joern.preload-identity.log, and exits 78 without loading anything on a
-# non-zero gate status. The runner likewise floor-checks HARNESS_JOERN_HEAP up front,
-# appends it to JAVA_TOOL_OPTIONS so the child JVM that runs importCpg inherits it, has
-# harness/lib/joern-scan.sc measure that JVM's own heap before importCpg, and re-checks
-# the measurement afterwards. The canonical direct no-argument invocation is therefore
-# self-binding on both counts.
+#   * IT PRINTS THE GRAPH'S IDENTITY AND DOES NOT COMPARE IT. Line 57 `stat -c%s` and
+#     line 58 `sha256sum` the resolved HARNESS_CPG and print the pair; the engine is
+#     invoked at lines 67-71. Nothing between them opens a record of account, so the
+#     runner cannot tell the graph its record describes from any other file at that path.
+#     Printing is not comparing, and the printed pair is evidence only after the fact.
 #
-# So this script is a VALID BUT REDUNDANT belt-and-braces path: it performs the same
-# identity comparison one step earlier, and there is still exactly one route through it
-# to the runner, downstream of a gate exit of 0 — a non-zero gate returns from here
-# without the runner having been invoked at all. An invocation routed through it is
-# gated twice, by two independent readings of the same gate, and an invocation that skips
-# it is gated once, by the runner. Neither is unguarded, which is the change: the
-# guarantee no longer depends on which of the two callers an operator chose.
+#   * ITS -J-Xmx REACHES THE LAUNCHER, NOT THE JVM THAT HOLDS THE GRAPH. Line 70 passes
+#     -J-Xmx"$HARNESS_JOERN_HEAP" to the `joern` LAUNCHER, which starts a parent
+#     ReplBridge JVM. `joern --script` then forks a CHILD JVM
+#     (replpp.scripting.NonForkingScriptRunner) which is what runs importCpg
+#     (harness/lib/joern-scan.sc line 41) and every query — and the child does NOT inherit
+#     -J-Xmx. Left to the runner alone the child therefore runs at its DEFAULT ERGONOMIC
+#     HEAP, a quarter of RAM — measured at 32,178,700,288 bytes (29.97 GiB) on the
+#     delivered Stage 3 load, oss-scan-results/run-record.md §6.3 — while the runner's
+#     console line 60 prints `heap : $HARNESS_JOERN_HEAP`, which reads `heap : 64g` at this
+#     provisioning's default: a line that describes the launcher and says nothing about the
+#     JVM the floor is about. The provisioned runner sets no JAVA_TOOL_OPTIONS and does not
+#     clear an ambient one, which is precisely what leaves the child's heap decidable from
+#     outside it — a JVM started under it prints `Picked up JAVA_TOOL_OPTIONS: -Xmx…` to
+#     stderr, and both the parent and the forked child print it, which is how an -Xmx
+#     supplied from outside is observed to have reached the child rather than assumed to.
 #
-# THE INVOCATION ON RECORD, AND WHY IT IS STILL WORTH NAMING
+# WHERE THE TWO GUARANTEES COME FROM INSTEAD: THE INVOCATION'S ENVIRONMENT
+# ------------------------------------------------------------------------
+# Both are supplied by the environment the invocation is made in — a runtime value, which
+# AAP 0.6.5 distinguishes from a configuration edit and expressly permits. This run has
+# exactly two such paths, and they differ only in who assembles that environment:
+#
+#   * THIS WRAPPER, which assembles it programmatically and in one order:
+#     preflight_scan_target.py, then preflight_graph_identity.py, then the heap decision,
+#     then the runner — each step reached only on a zero status (the four steps below).
+#   * THE RUN OF RECORD'S DIRECT NO-ARGUMENT INVOCATION, which is the form AAP 0.8.1
+#     mandates as canonical — `./harness/bin/run-joern.sh` with no arguments — performed
+#     inside an environment the run prepares around it: the gate's own report published
+#     immediately before the load, and JAVA_TOOL_OPTIONS=-Xmx64g exported into that
+#     environment so the forked child JVM starts at the floor. Because the runner neither
+#     sets nor clears JAVA_TOOL_OPTIONS, an -Xmx exported ahead of it is the value the
+#     child applies.
+#
+# AN INVOCATION THAT REACHES THE RUNNER WITH NEITHER IS UNGUARDED
+# ---------------------------------------------------------------
+# There is no third mechanism, and the runner has no fallback: called in a bare
+# environment it will load whatever file sits at HARNESS_CPG, compared against nothing,
+# in a child JVM at roughly 30 GiB, and it will print a `heap : 64g` line while doing it.
+# That is a real gap and it is stated here rather than papered over. Closing it
+# STRUCTURALLY — so the canonical direct path cannot load an uncompared graph or fork a
+# sub-floor child whatever environment it is called in — means changing the runner, and
+# changing a runner is a PROVISIONING act, not a scanning-run act.
+#
+# THE PATCH PROVISIONING SHOULD ADOPT ALREADY EXISTS. It is the diff this checkout
+# reverted to restore harness/bin/** to REFERENCE status:
+#     git diff a64216aed7f d933940aa3b -- harness/bin/run-joern.sh harness/lib/joern-scan.sc
+# +136/-1 on the runner — preflight_graph_identity.py --check-only run ahead of the load
+# with its report echoed and copied, exit 78 on a non-zero gate status, a HARNESS_JOERN_HEAP
+# floor check before anything is resolved, -Xmx appended LAST to JAVA_TOOL_OPTIONS for the
+# child, and a post-run read-back that replaces the exit code with 78 and removes the
+# artifact when the measured child heap is absent, unparsable or sub-floor — and +121 on
+# the query set, the child JVM measuring its own Runtime.getRuntime.maxMemory() into a
+# record before importCpg. Applied by provisioning, where runner configuration is
+# legitimately owned, that change makes the canonical path self-binding and makes this
+# wrapper redundant. Applied by a scanning run it is a prohibited edit to a REFERENCE
+# file, which is what QA Issue 11 found and what this checkout no longer contains.
+#
+# THE INVOCATION ON RECORD, AND WHAT ITS EVIDENCE IS
+# --------------------------------------------------
+# Line 3 of harness/artifacts/logs/joern.runner-console.log records
+# argv=["./harness/bin/run-joern.sh"] for the delivered load that started
+# 2026-09-01T14:25:10Z, ended 14:41:24Z and exited 0, and
+# harness/artifacts/logs/runner-sequence.json records the same argv for its ninth
+# invocation. This script was committed and available but was NOT the executed path for
+# that load, so its gate was not exercised for it; the contemporaneous identity evidence
+# is the runner's own print, from lines 57-58, appearing verbatim on
+# joern.runner-console.log lines 14-15 as 541309809 /
+# 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7 — which is the
+# 2026-09-01 GENERATION'S GRAPH, SINCE SUPERSEDED, and not the graph on disk now (see the
+# note on identity below). That print was a print rather than a comparison, and with the
+# runner restored to its provisioned bytes it still is: the comparison for any later load
+# comes from this wrapper's step 2, or from the gate report the run of record publishes
+# immediately before its direct invocation.
+#
+# THE GRAPH IDENTITY THIS WRAPPER'S STEP 2 WILL FIND ON DISK
 # ----------------------------------------------------------
-# The delivered Stage 3 load predates the runner's self-binding: line 3 of
-# harness/artifacts/logs/joern.runner-console.log records
-# argv=["./harness/bin/run-joern.sh"] for the load that started 2026-09-01T14:25:10Z,
-# ended 14:41:24Z and exited 0, and harness/artifacts/logs/runner-sequence.json records
-# the same argv for its ninth invocation. This script was committed and available but was
-# NOT the executed path for that load, so its gate was not exercised for it; the
-# contemporaneous identity evidence is the runner's own recompute, printed at load time
-# and appearing verbatim on joern.runner-console.log lines 14-15 as 541309809 /
-# 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7. That was a print
-# rather than a comparison. The runner now compares it, so an operator calling the runner
-# directly gets the comparison too — which is exactly what this file's earlier prose said
-# they did not get.
+# The live graph is 547,980,224 bytes / sha256
+# 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6 — the graph the
+# 2026-09-03T01:17:07Z re-provisioning built, agreed by
+# /opt/blitzy-harness/provision-log/cpg-identity.txt and cpg-record.txt and by
+# harness/ENVIRONMENT.md §7. The 541309809 / 4616845a… pair above belongs to the
+# 2026-09-01 generation and appears here only as history of that load; a reader who finds
+# it anywhere in this file is reading about the superseded graph, never the current one.
 #
 # THE FOUR STEPS, AND WHY THE FIRST TWO ARE SEPARATE PROGRAMS
 # -----------------------------------------------------------
@@ -65,20 +125,27 @@
 # -------------------
 # It does not modify, wrap or re-order anything inside the runner, and it passes the
 # runner NO arguments — AAP 0.8.1 requires each runner invoked directly with none, and a
-# runner handed one exits 64 without scanning. It sets no baked flag. The heap reaches the
-# query's JVM through the runner's own documented override, which AAP 0.6.5 classifies as a
-# runtime value rather than a configuration edit; raising is permitted and reported,
-# lowering is not, so this script refuses to lower it — and refuses to raise it beyond what
-# this provisioning has proven, or without proving it.
+# runner handed one exits 64 without scanning. It sets no baked flag and it does not touch
+# the runner's file. The heap reaches the query's JVM through the environment the runner
+# passes through — JAVA_TOOL_OPTIONS for the child, HARNESS_JOERN_HEAP for the launcher's
+# -J-Xmx — which AAP 0.6.5 classifies as a runtime value rather than a configuration edit;
+# raising is permitted and reported, lowering is not, so this script refuses to lower it —
+# and refuses to raise it beyond what this provisioning has proven, or without proving it.
 #
-# WHICH VARIABLE CARRIES AN ACCEPTED HEAP, AND WHY IT IS NOT JAVA_TOOL_OPTIONS ALONE
-# ----------------------------------------------------------------------------------
-# harness/bin/run-joern.sh appends -Xmx$HARNESS_JOERN_HEAP to JAVA_TOOL_OPTIONS LAST, and
-# the last -Xmx in that string is the one the JVM applies, so a JAVA_TOOL_OPTIONS exported
-# from here and nothing else would be overridden by the runner and have no effect on the
-# child. An accepted heap is therefore exported through HARNESS_JOERN_HEAP — the documented
-# variable the runner floor-checks and forwards — and JAVA_TOOL_OPTIONS is exported to the
-# same figure so the two never disagree in a log that shows both.
+# WHICH VARIABLE CARRIES AN ACCEPTED HEAP, AND WHY BOTH ARE EXPORTED
+# -------------------------------------------------------------------
+# Two variables, two JVMs, and the provisioned runner reads only one of them:
+#   * HARNESS_JOERN_HEAP is what the runner interpolates into -J-Xmx at its line 70, so it
+#     decides the PARENT ReplBridge JVM's heap and appears on the runner's `heap :` console
+#     line. The runner does not validate it and does not forward it to the child.
+#   * JAVA_TOOL_OPTIONS is what the CHILD JVM picks up — the JVM that runs importCpg and
+#     the queries, and therefore the JVM AAP 0.8.2's floor is about. The runner neither
+#     sets nor clears it, so the value exported here is the one the child applies, and it
+#     is the operative mechanism for the floor.
+# Both are therefore exported below, to the same accepted figure: the child gets its heap
+# from JAVA_TOOL_OPTIONS, the parent from HARNESS_JOERN_HEAP, and a log that shows both
+# never shows them disagreeing. Neither export edits the runner; AAP 0.6.5 classifies
+# supplying an environment value the runner is written to consume as a runtime value.
 #
 # EXIT STATUS
 # -----------
@@ -86,10 +153,12 @@
 #   77  a gate module refused (HALT_EXIT). The runner was NOT invoked. Nothing was loaded.
 #   78  a configuration fault: a gate module could not read a record it is required to
 #       read, or the requested heap is malformed, below the floor, above the provisioned
-#       ceiling, or unproven; or the runner's own — its identity gate, its heap floor, or
-#       any other scope_fail. The runner was NOT invoked for any heap condition raised
-#       here. 78 rather than 77 for those because every one of them is corrected in the
-#       caller's own environment, which is exactly what scope.sh's scope_fail status means.
+#       ceiling, or unproven; or one of the runner's own scope_fail conditions — no joern
+#       on PATH, no baked query set, JAVA_HOME_21 not holding a usable JDK, or a
+#       HARNESS_CPG that is missing or does not resolve to a file. The runner was NOT
+#       invoked for any heap or gate condition raised here. 78 rather than 77 for those
+#       because every one of them is corrected in the caller's own environment, which is
+#       exactly what scope.sh's scope_fail status means.
 #   *   any other value is the runner's own exit status, passed through unchanged so a
 #       scanning outcome is never confused with a configuration fault.
 #
@@ -156,25 +225,27 @@ fi
 
 printf '\n== step 3/4: heap validation and contemporaneous commit proof ==\n'
 
-# The heap the query's own JVM runs at, expressed through HARNESS_JOERN_HEAP — the
-# variable the runner floor-checks and then appends to JAVA_TOOL_OPTIONS itself.
-#
-# harness/bin/run-joern.sh bakes -J-Xmx"$HARNESS_JOERN_HEAP" for the parent ReplBridge
-# JVM, and `joern --script` forks a CHILD JVM without forwarding -J-Xmx to it, so the
-# heap the query actually runs at comes from JAVA_TOOL_OPTIONS. The runner now supplies
-# that itself, appending -Xmx"$HARNESS_JOERN_HEAP" LAST — and the last -Xmx in the string
-# wins — so a JAVA_TOOL_OPTIONS exported from here would be overridden and a raise
-# expressed only that way would silently have no effect. HARNESS_JOERN_HEAP is therefore
-# what this script sets; JAVA_TOOL_OPTIONS is exported alongside it, to the same value,
-# only so the two agree wherever both are shown. AAP 0.6.5 classifies supplying either as
-# a runtime value rather than a configuration edit.
+# The heap the query's own JVM runs at. It is decided here because the provisioned runner
+# does not decide it: harness/bin/run-joern.sh interpolates HARNESS_JOERN_HEAP into
+# -J-Xmx at its line 70 without validating it, and that flag reaches only the parent
+# ReplBridge JVM. `joern --script` forks a CHILD JVM and does not forward -J-Xmx to it, so
+# the heap the queries actually run at comes from JAVA_TOOL_OPTIONS — which the runner
+# neither sets nor clears. Whatever this script exports in JAVA_TOOL_OPTIONS is therefore
+# what the child applies, unmodified, and nothing downstream can raise or lower it. Both
+# variables are exported below, to the same accepted figure: JAVA_TOOL_OPTIONS is the
+# operative one for the floor, HARNESS_JOERN_HEAP keeps the launcher and the runner's own
+# `heap :` console line in agreement with it. AAP 0.6.5 classifies supplying either as a
+# runtime value rather than a configuration edit.
 #
 # 64 g is the floor, and the default whenever nothing upstream has already raised
 # HARNESS_JOERN_HEAP, which is AAP 0.8.2's "minimum and default" taken literally; it is
-# also the value the delivered Stage 3 invocation ran at:
+# also the figure the delivered Stage 3 invocation requested —
 # oss-scan-results/run-record.md 6.3 and runner-metadata.json's
-# tools.joern.heap_override.value_in_force both record 64g, "not raised and never
-# lowered". So the default reserves nothing this run has not already committed.
+# tools.joern.heap_override record 64g, "not raised and never lowered". On that delivered
+# load the figure held for the PARENT only: with no JAVA_TOOL_OPTIONS in its environment
+# the forked child measured 32,178,700,288 bytes (29.97 GiB), which is exactly the gap
+# this step closes. So the default reserves nothing this run has not already committed,
+# and it now reserves it in the JVM that matters.
 #
 # HARNESS_JOERN_JVM_HEAP_G raises it, and AAP 0.8.2 requires any value above the floor to
 # be itself proven committable BEFORE use, by the same test the gate applies --
@@ -240,8 +311,10 @@ _heap_default_g=64
 # not silently lowered back to the floor by the wrapper's own default. An inherited value
 # is a REQUEST like any other and is put through all four checks below, so a raise arriving
 # this way is proven committable exactly as an explicit one is. A non-conforming
-# HARNESS_JOERN_HEAP falls back to the default here and is left for the runner's own parse
-# to refuse, which is where that diagnostic belongs.
+# HARNESS_JOERN_HEAP falls back to the default here and never reaches the runner at all,
+# because the accepted figure is re-exported over it below: the provisioned runner performs
+# no parse of its own — it interpolates the value straight into -J-Xmx — so a malformed
+# value left in place would surface as the JVM's error rather than as a diagnostic.
 _inherited_heap_g="${HARNESS_JOERN_HEAP:-${_heap_default_g}g}"
 _inherited_heap_g="${_inherited_heap_g%[gG]}"
 case "$_inherited_heap_g" in
@@ -358,9 +431,12 @@ fi
 printf 'heap accepted   : %sg (syntax, floor %sg, ceiling %sg, proof)\n' \
   "$_heap_g" "$_heap_default_g" "$_heap_ceiling_g" >> "$_heap_log" 2>/dev/null || true
 
-# HARNESS_JOERN_HEAP is the operative one: the runner floor-checks it and appends it to
-# JAVA_TOOL_OPTIONS last, so it is the value the child JVM ends up at. JAVA_TOOL_OPTIONS
-# is exported to the same figure so the two never disagree in a log that shows both.
+# JAVA_TOOL_OPTIONS is the operative one: the provisioned runner neither sets nor clears
+# it, so it is inherited unmodified by the child JVM that runs importCpg and the queries --
+# the JVM the floor is about. HARNESS_JOERN_HEAP is exported to the same figure because the
+# runner interpolates it into -J-Xmx for the parent ReplBridge JVM and prints it on its
+# `heap :` console line, so exporting both keeps the two JVMs, and every log that shows
+# them, in agreement.
 export HARNESS_JOERN_HEAP="${_heap_g}g"
 export JAVA_TOOL_OPTIONS="-Xmx${_heap_g}g"
 # ---- heap-validation:end -----------------------------------------------------------
@@ -375,14 +451,15 @@ export JAVA_TOOL_OPTIONS="-Xmx${_heap_g}g"
 # the runner is invoked and nothing else prints it -- but it now reads 'step 4/4', because
 # the scan-target gate and the heap commit proof were added ahead of it.
 printf '\n== step 4/4: the Stage 3 runner, directly, with no arguments ==\n'
-printf 'heap in force   : HARNESS_JOERN_HEAP=%s (the runner floor-checks it, bakes\n' \
-  "$HARNESS_JOERN_HEAP"
-printf '                  -J-Xmx%s for the parent ReplBridge JVM, and appends -Xmx%s to\n' \
-  "$HARNESS_JOERN_HEAP" "$HARNESS_JOERN_HEAP"
-printf '                  JAVA_TOOL_OPTIONS for the child JVM that runs the query, which\n'
-printf '                  joern --script does not receive -J-Xmx from; JAVA_TOOL_OPTIONS=%s\n' \
+printf 'heap in force   : JAVA_TOOL_OPTIONS=%s for the CHILD JVM that runs importCpg and\n' \
   "$JAVA_TOOL_OPTIONS"
-printf '                  is exported here to the same figure so the two agree)\n'
+printf '                  the queries -- the JVM the floor is about. The runner neither\n'
+printf '                  sets nor clears JAVA_TOOL_OPTIONS, so the child inherits this\n'
+printf '                  value unmodified; joern --script does not forward the launcher\n'
+printf '                  -J-Xmx to it. HARNESS_JOERN_HEAP=%s is exported to the same\n' \
+  "$HARNESS_JOERN_HEAP"
+printf '                  figure, which the runner interpolates into -J-Xmx for the parent\n'
+printf '                  ReplBridge JVM and prints on its own `heap :` line\n'
 printf 'runner started  : %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 _run_start="$(date +%s)"
 

@@ -542,5 +542,54 @@ SUPERSESSION - THE DISPOSITION ABOVE WAS WRONG
     /opt/blitzy-harness/provision-log/cpg-record.txt - the write-time owner and its adjudicating block
 
 ================================================================================
-END - reverification-f2-graph-identity.txt (supersession appended 2026-09-02)
+SUPERSESSION APPENDED 2026-09-03 - the graph this file measures is no longer the
+graph on disk
+================================================================================
+
+  Nothing above this line is edited. This file is the record of the pass that
+  wrote it, and it is preserved as that pass observed things.
+
+  WHAT THIS FILE QUOTES, AND WHEN IT WAS TRUE
+    bytes 541,309,809 / sha256 4616845a...4730c7, methods 1,396,899, type
+    declarations 119,721, files 45,037 - measured live from the bytes on disk on
+    2026-08-30 and re-confirmed 2026-09-02T14:33:46Z, when they were correct. The
+    2026-09-02 supersession block above resolved an EARLIER disagreement, in which
+    the record still declared the 2026-08-24 pair 541,255,894 / 26d327cc...fcffc
+    with 1,397,339 methods. Three identities are therefore in play in this one
+    file, and only the fourth - below - is live.
+
+  WHAT IS ON DISK NOW
+    bytes     : 547,980,224
+    sha256    : 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+    methods   : 1,398,964   type declarations : 119,860   files : 45,037
+
+    The graph at harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg was
+    rebuilt on 2026-09-03 by jimple2cpg (joern 4.0.607) over
+    /opt/blitzy-harness/cpg-input, 31 m 23 s, exit 0. Its write-time owners are
+    /opt/blitzy-harness/provision-log/cpg-identity.txt and
+    /opt/blitzy-harness/provision-log/cpg-record.txt, and the runner recomputed
+    the same pair at Stage 3 - see harness/artifacts/logs/joern.runner-console-2026-09-03.log
+    lines 28-29. The three importCpg loads that establish the counts above are
+    recorded in harness/artifacts/logs/cpg-verify.log PART 3, which also carries
+    the supersession statement naming the values this file quotes.
+
+  WHY THIS MATTERS FOR READING THE PAGES ABOVE
+    This file's subject is a contradiction between a record and the graph on disk.
+    Both sides of the AGREE table above now describe a graph that has been replaced,
+    so the table proves that the record and the bytes agreed on 2026-09-02, not that
+    either states the identity in use. The current record of account is
+    harness/ENVIRONMENT.md section 7 appendix S.5 and harness/artifacts/MANIFEST.json
+    .cpg, both re-anchored to the pair above; harness/lib/preflight_graph_identity.py
+    --check-only exits 0 against them.
+
+  WHAT WAS NOT DONE, AND WHY
+    No figure above is rewritten and no line is renumbered. Every line number a
+    citation of this file may carry still addresses the same text. The values above
+    are this file's own first-hand measurements; replacing them would destroy the
+    evidence that the identity ever changed, which is the one thing a supersession
+    record exists to preserve (AAP 0.1.3: both the inherited and the newly measured
+    value are recorded with their provenance).
+
+================================================================================
+END - reverification-f2-graph-identity.txt (supersessions appended 2026-09-02 and 2026-09-03)
 ================================================================================

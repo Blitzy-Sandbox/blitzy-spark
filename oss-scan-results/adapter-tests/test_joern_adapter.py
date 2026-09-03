@@ -55,8 +55,8 @@ documented shape and ``queries[].returned`` in this provisioning's shape are the
 collector's **own** per-query tallies and are neither the raw count nor a substitute for
 it.  Every committed fixture keeps the two numbers different -- the captured fixture
 excerpts fourteen of the raw artifact's findings while carrying its ``queries`` array
-unchanged, so the tallies sum to 693 against fourteen records -- which is what makes the
-assertion non-vacuous: an implementation counting the tallies would produce 693 against
+unchanged, so the tallies sum to 690 against fourteen records -- which is what makes the
+assertion non-vacuous: an implementation counting the tallies would produce 690 against
 eleven rows and three rejections and fail loudly rather than agree silently.
 
 Fixture provenance, and the one requirement a capture of this artifact cannot carry
@@ -68,14 +68,16 @@ re-spelled or adjusted, and :class:`RawArtifactProvenanceTest` proves it by open
 artifact and comparing record for record -- not by comparing the fixture with a digest
 stored beside it, which would prove only that the fixture agrees with itself.  The capture
 covers both outcomes the artifact really produces: eleven findings resolve uniquely to a
-``src/main`` source file and become rows, and three name a third-party class shaded into
-Spark's JARs, which resolves to nothing and is a counted ``unresolvable_path`` rejection.
-Its parse status is therefore ``partial``, which is what this artifact honestly is.
+``src/main`` source file and become rows, and three name a third-party class no source in
+either tree declares -- one relocated under ``org.sparkproject``, two ordinary classpath
+dependencies -- each resolving to nothing and each a counted ``unresolvable_path``
+rejection.  Its parse status is therefore ``partial``, which is what this artifact
+honestly is.
 
 One AAP requirement cannot be met by any capture of this artifact: a finding resolving into
 a ``src/test`` tree, retained with ``in_scope: false``.  The raw artifact carries **no**
-test-tree class -- 0 of its 693 findings names a class whose simple name carries ``Suite``
-or ``Test``, and the committed dataset holds 107 joern rows and not one with a ``src/test``
+test-tree class -- 0 of its 690 findings names a class whose simple name carries ``Suite``
+or ``Test``, and the committed dataset holds 104 joern rows and not one with a ``src/test``
 path, both asserted here rather than asserted in prose -- because the runbook excludes every
 ``-tests`` JAR from the graph input.  So that case lives on ``fixtures/derived-joern-features
 .json``, which **declares itself derived** in its expected file: ten of its records are
@@ -433,13 +435,56 @@ RAW_ARTIFACT = REPO_ROOT / "harness" / "artifacts" / "raw" / "joern.json"
 
 #: The raw ``findings[]`` indexes the captured fixture holds, in raw document order.  Stated
 #: here as well as in the expected file so the two are cross-checked rather than one being
-#: taken on faith.
-CAPTURED_FINDING_INDEXES = (0, 10, 14, 15, 16, 95, 97, 238, 372, 656, 657, 670, 682, 692)
+#: taken on faith.  Strictly increasing, distinct, all inside the artifact's 690 records, and
+#: spanning all six query identifiers; ``expected/joern.rows.json``'s ``why_these_fourteen``
+#: states what each entry was chosen for.  The artifact's own **first** record (0) and its
+#: own **last** (689) are both taken, so an off-by-one at either end of the findings array is
+#: a failure rather than a record nobody looked at.
+#:
+#: ==== ==================================== ====================================
+#: idx  query (raw range)                    what it samples
+#: ==== ==================================== ====================================
+#: 0    process-exec (0..54)                 the artifact's FIRST record; commons-crypto
+#:                                           ``OsInfo``, a third-party class no source in
+#:                                           the tree declares -> ``unresolvable_path``
+#: 18   process-exec                         ``ProcessBuilderLike$$anon$3``, declared in
+#:                                           ``DriverRunner.scala`` -> declaration scheme
+#: 19   process-exec                         ``ExecutorRunner``, plain filename scheme, in
+#:                                           scope under ``core/src/main/**``
+#: 25   process-exec                         ``PipedRDD``, the named ``src/main`` exemplar
+#: 34   process-exec                         ``SparkLauncher``, a Java file under
+#:                                           ``launcher/`` -> resolved but out of scope
+#: 55   unsafe-deserialization (55..232)      that query's FIRST record; ``UdfPacket$``, a
+#:                                           companion-object name the key reduction must
+#:                                           collapse
+#: 140  unsafe-deserialization               ``RangePartitioner``, declared in
+#:                                           ``Partitioner.scala`` -> declaration scheme
+#: 233  reflection-forname (233..643)         that query's FIRST record;
+#:                                           ``ObjectInputStreamWithLoader``, declared in
+#:                                           ``Checkpoint.scala``, out of scope
+#: 351  reflection-forname                   ``YarnShuffleService``, a Java file in scope
+#:                                           under ``common/network-yarn/src/main/**``
+#: 651  message-digest (644..666)             shaded Guava ``MessageDigestHashFunction`` ->
+#:                                           ``unresolvable_path``, the same coordinate
+#:                                           ``reject-joern-unresolvable-path.json`` reports
+#: 661  message-digest                       ``org.apache.hive.service.CookieSigner``, a
+#:                                           vendored Hive source Spark really ships
+#: 675  cipher-getinstance (667..676)         ``ExpressionImplUtils``, the only one of that
+#:                                           ten-record group whose class is Spark's own
+#: 679  xml-factory (677..689)                ``org.apache.log4j.xml.XmlConfiguration`` ->
+#:                                           ``unresolvable_path``
+#: 689  xml-factory                          the artifact's LAST record;
+#:                                           ``StaxXmlParserUtils$``, in scope
+#: ==== ==================================== ====================================
+CAPTURED_FINDING_INDEXES = (0, 18, 19, 25, 34, 55, 140, 233, 351, 651, 661, 675, 679, 689)
 
 #: The raw indexes whose records the *derived* fixture also carries verbatim, in the order it
-#: carries them.  Its remaining record -- index 7, the ``MasterSuite`` finding -- is authored
-#: and appears in the raw artifact under no index at all.
-DERIVED_CAPTURED_FINDING_INDEXES = (10, 14, 15, 16, 95, 238, 372, 657, 670, 682)
+#: carries them, which is ascending raw order.  Its remaining record -- index 7, the
+#: ``MasterSuite`` finding -- is authored and appears in the raw artifact under no index at
+#: all.  The ten are the captured selection's eleven rows less raw index 140
+#: (``RangePartitioner``): every record here resolves, so the derived document's parse status
+#: is ``clean`` where the capture's is ``partial``.
+DERIVED_CAPTURED_FINDING_INDEXES = (18, 19, 25, 34, 55, 233, 351, 661, 675, 689)
 
 #: The position of the authored record in the derived fixture.
 DERIVED_AUTHORED_FINDING_INDEX = 7
@@ -974,7 +1019,7 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
 
         Asserted on a fixture where the two numbers **differ**: the captured fixture
         excerpts fourteen of the raw artifact's findings while carrying its ``queries`` array
-        unchanged, so the tallies sum to 693.  Without that divergence an implementation
+        unchanged, so the tallies sum to 690.  Without that divergence an implementation
         using the wrong number would satisfy the identity and the assertion would test
         nothing (AAP 0.5.4).
         """
@@ -987,7 +1032,7 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
             "or this assertion is vacuous",
         )
         self.assertEqual(adapted.raw_records, 14)
-        self.assertEqual(tallies, 693)
+        self.assertEqual(tallies, 690)
         self.assertEqual(
             len(adapted.rows) + len(adapted.rejections),
             adapted.raw_records,
@@ -1227,14 +1272,14 @@ class RawArtifactProvenanceTest(unittest.TestCase):
     def test_the_raw_artifact_carries_the_records_and_envelope_this_capture_claims(
         self,
     ) -> None:
-        """The raw artifact holds 693 findings and the envelope members the fixture copies."""
-        self.assertEqual(len(self.raw_findings), 693)
+        """The raw artifact holds 690 findings and the envelope members the fixture copies."""
+        self.assertEqual(len(self.raw_findings), 690)
         for member in ("tool", "tool_version", "cpg", "graph", "query_set", "queries"):
             with self.subTest(member=member):
                 self.assertIn(member, self.raw)
         self.assertEqual(self.raw["tool"], TOOL)
         expected_fixture = load_expected(CAPTURED_FIXTURE)["fixture"]
-        self.assertEqual(expected_fixture["captured_from_findings"], 693)
+        self.assertEqual(expected_fixture["captured_from_findings"], 690)
         self.assertEqual(
             expected_fixture["captured_from"], "harness/artifacts/raw/joern.json"
         )
@@ -1336,7 +1381,7 @@ class RawArtifactProvenanceTest(unittest.TestCase):
         AAP 0.5.4 requires a finding resolving into ``src/test`` to be retained with
         ``in_scope: false``.  No capture of this artifact can carry that case, and this is
         the measurement that makes the statement in the expected file a fact rather than an
-        assertion in prose: not one of the 693 findings names a class whose simple name
+        assertion in prose: not one of the 690 findings names a class whose simple name
         carries ``Suite`` or ``Test``, because the runbook excludes every ``-tests`` JAR from
         the graph input.
         """
@@ -1430,11 +1475,11 @@ class CapturedFixtureTest(HermeticRootTestCase):
 
     Because it is a capture, it carries the artifact's real mix of outcomes rather than a
     chosen one: eleven records resolve uniquely into ``src/main`` and become rows -- nine in
-    scope and two outside the twelve globs -- and three name a third-party class shaded into
-    Spark's JARs, which no source file declares and which is therefore a counted
-    ``unresolvable_path`` rejection.  Its parse status is ``partial``, and that is the
-    artifact's honest status rather than a defect in the fixture: over all 693 findings, 586
-    resolve to nothing.
+    scope and two outside the twelve globs -- and three name a third-party class no source
+    file in either tree declares -- one relocated under ``org.sparkproject``, two ordinary
+    classpath dependencies -- each therefore a counted ``unresolvable_path`` rejection.  Its
+    parse status is ``partial``, and that is the artifact's honest status rather than a
+    defect in the fixture: over all 690 findings, 586 resolve to nothing.
 
     Two counters read 14 against 11 rows -- ``rule_id_from_query_id`` and
     ``coordinate_from_class`` -- because the rule identifier and the coordinate member are
@@ -1458,7 +1503,7 @@ class CapturedFixtureTest(HermeticRootTestCase):
         self.assertEqual(
             self.adapted.reject_classes,
             (paths.REJECT_UNRESOLVABLE_PATH,) * 3,
-            "the capture's three shaded third-party classes are unresolvable_path "
+            "the capture's three third-party classes are unresolvable_path "
             "rejections, each named by class rather than merely counted",
         )
         self.assertEqual(
@@ -1801,7 +1846,7 @@ class CapturedFixtureTest(HermeticRootTestCase):
         self.assertIn("not waived", retention["statement"])
         self.assertIn(DERIVED_FEATURES_FIXTURE, retention["statement"])
         evidence = retention["measured_evidence"]
-        self.assertEqual(evidence["raw_findings"], 693)
+        self.assertEqual(evidence["raw_findings"], 690)
         self.assertEqual(
             evidence["raw_findings_whose_class_simple_name_carries_Suite_or_Test"], 0
         )
@@ -1932,7 +1977,7 @@ SRC_TEST_ROW_INDEX = 7
 SRC_TEST_ROW_PATH = "core/src/test/scala/org/apache/spark/deploy/master/MasterSuite.scala"
 
 #: The row of the **captured** fixture that resolves uniquely into ``src/main``, and its path.
-SRC_MAIN_ROW_INDEX = 1
+SRC_MAIN_ROW_INDEX = 2
 SRC_MAIN_ROW_PATH = "core/src/main/scala/org/apache/spark/rdd/PipedRDD.scala"
 
 #: The three coordinates the captured fixture reaches that resolve on the declaration scheme
@@ -2817,7 +2862,7 @@ class NegativeFixtureTest(HermeticRootTestCase):
     adapter did not abandon the artifact, and every parsable record still became a row.
 
     ``absent_path`` is the condition the production artifact does not exercise at all: over
-    ``harness/artifacts/raw/joern.json``'s 693 findings every one of the 586 rejections is
+    ``harness/artifacts/raw/joern.json``'s 690 findings every one of the 586 rejections is
     ``unresolvable_path``, because this provisioning's collector named a class on every
     finding it wrote.  The condition is nonetheless reachable -- ``joern-scan.sc`` writes
     the ``<unknown>`` sentinel for a method with no enclosing type declaration, and the
@@ -3462,7 +3507,7 @@ class CallerContractTest(HermeticRootTestCase):
 
         Two documents, because a caller fault must be distinguishable from both of the
         artifact's ordinary outcomes: the derived fixture, which produces eleven rows and no
-        rejection, and the captured fixture, whose three shaded third-party classes are
+        rejection, and the captured fixture, whose three third-party classes are
         counted rejections.  A rejection is a record outcome rather than a caller fault, and
         every fault below raises instead of producing either.
         """
@@ -4305,7 +4350,7 @@ class CollectorPathRefusalTest(HermeticRootTestCase):
     ``fixtures/reject-joern-collector-path-refused.json`` carries.
 
     The fixture is authored rather than captured, and measurably had to be: over
-    ``harness/artifacts/raw/joern.json``'s 693 findings none carries a ``path`` member and
+    ``harness/artifacts/raw/joern.json``'s 690 findings none carries a ``path`` member and
     none carries the sentinel, so no captured record places a collector answer beside a
     coordinate this run cannot use.  AAP 0.9.4 requires the rejection path to be exercised
     regardless.

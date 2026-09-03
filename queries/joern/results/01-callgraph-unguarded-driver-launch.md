@@ -21,16 +21,16 @@ any Spark component or of any Spark configuration.
 | --- | --- |
 | Query source | `queries/joern/01-callgraph-unguarded-driver-launch.sc` |
 | Query source sha256 | `79583377ffdc05762226f1437be94d953bf44be1ea94bbc3d9e48f072a27f4ac` (307625 bytes) |
-| Publication id | `282448edaac93a9fcf34a7df351e5ccc32a8d8a5819451687dcd3c5fe87c2c3b` |
+| Publication id | `efc857cebf2044a130526df24267924e72f70803a5d2f7abebcda3466775c962` |
 | Envelope | `queries/joern/results/01-callgraph-unguarded-driver-launch.json` |
 | Console log | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log` |
 | Loader | `importCpg` into a switched workspace (`queries/joern/.workspace`) |
 | JDK major | 21 |
 | Heap actually used | 68719476736 bytes (floor 68719476736) |
-| Graph | 541309809 bytes, sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` |
+| Graph | 547980224 bytes, sha256 `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` |
 | Graph identity re-verified before the load | yes, against `provision-log/cpg-identity.txt` |
 | Bytes actually imported | a private copy this run made, digested in the copy pass, verified against that record, and re-verified by digest and inode after the load |
-| Graph methods / typeDecls / files | 1396899 / 119721 / 45037 |
+| Graph methods / typeDecls / files | 1398964 / 119860 / 45037 |
 | Compile status | compiled |
 | Run status | completed |
 | Records returned | 4 (4 boundary, 0 route) |
@@ -46,7 +46,7 @@ verified that the file it digested declares this query's own identifier, and it
 refuses to publish anything if it does not.
 
 The envelope beside this report carries the same digest and the same publication
-identifier `282448edaac93a9fcf34a7df351e5ccc32a8d8a5819451687dcd3c5fe87c2c3b`, as does the console log. Every figure below was
+identifier `efc857cebf2044a130526df24267924e72f70803a5d2f7abebcda3466775c962`, as does the console log. Every figure below was
 measured during that run from the graph, from this source's own text, from the
 identity record or from the repository's commit history for this source path -
 nothing here is transcribed from another document or from a previous run. **A
@@ -74,8 +74,8 @@ explicit named bound; none runs unbounded.
 
 Which bound bit, per walk, so the flag is interpretable rather than bare:
 
-- walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Expansions: 25006 of 200000 at the busiest single entry point, 25009 of 3200000 across the whole walk; routes returned 0 of 64.
-- walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Expansions: 5595 of 200000 at the busiest single entry point, 5598 of 3200000 across the whole walk; routes returned 0 of 64.
+- walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Expansions: 19548 of 200000 at the busiest single entry point, 19551 of 3200000 across the whole walk; routes returned 0 of 64.
+- walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Expansions: 2347 of 200000 at the busiest single entry point, 2350 of 3200000 across the whole walk; routes returned 0 of 64.
 
 A depth bound reached with a non-empty frontier says only that the walk stopped
 expanding, so on its own it would leave open whether a deeper walk would reach a
@@ -111,7 +111,7 @@ from the same entry point are counted rather than retained: `A-follows-fan-out` 
 | entry: synthetic partial-function type declarations | `MAX_TYPE_SCAN` | 100000 | 2 | false |
 | entry: methods on those synthetic types | `MAX_TYPE_SCAN` | 100000 | 60 | false |
 | entry: source-level handler methods | `MAX_TYPE_SCAN` | 100000 | 2 | false |
-| sink: calls named start | `MAX_CALL_SCAN` | 200000 | 1234 | false |
+| sink: calls named start | `MAX_CALL_SCAN` | 200000 | 1233 | false |
 | predicate: type declarations | `MAX_TYPE_SCAN` | 100000 | 2 | false |
 | predicate: methods on that type | `MAX_TYPE_SCAN` | 100000 | 252 | false |
 | predicate: call sites of the five named predicates | `MAX_CALL_SCAN` | 200000 | 36 | false |
@@ -146,8 +146,8 @@ into one sentence about a single helper.
 
 | walk | follows fan-out | expansions (walk) | expansions (busiest entry) | call sites | fan-out seen | fan-out not followed | max depth | depth bound reached | per-entry cap reached | walk budget exhausted | routes | alternate sink arrivals not retained |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `A-follows-fan-out` | true | 25009 | 25006 | 33565 | 86 | 0 | 12 | true | false | false | 0 | 0 |
-| `B-fan-out-recorded` | false | 5598 | 5595 | 11575 | 55 | 55 | 12 | true | false | false | 0 | 0 |
+| `A-follows-fan-out` | true | 19551 | 19548 | 21476 | 48 | 0 | 12 | true | false | false | 0 | 0 |
+| `B-fan-out-recorded` | false | 2350 | 2347 | 4383 | 31 | 31 | 12 | true | false | false | 0 | 0 |
 
 ## Entry points, and how they were selected
 
@@ -287,7 +287,7 @@ a SYMMETRIC pairwise relation: the verdict this envelope states against a query 
    The commits counted, newest first, so the number is auditable rather than
    asserted:
 
-   - `d3bc40ae290877827cbd422ba9025a4f54328ec0`
+   - `0e3e742a5ad2cb057fd2ebafb6f6a0137c82d21b`
    - `232d0d9cca3f15d33cedb96fa18dac3c6602668b`
    - `1ac5915ed1535ff1ffece11b6b40b0286be74d45`
 

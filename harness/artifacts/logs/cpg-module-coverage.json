@@ -1,754 +1,852 @@
 {
-  "schema_version": 2,
-  "document": "harness/artifacts/logs/cpg-module-coverage.json",
-  "stage": "Stage 2 — per-module coverage of the code-property graph",
-  "supersedes": "the previous edition of this file, which was written in clone w-001 on 2026-08-31T16:11:52Z and described a graph of 605,687,359 bytes / sha256 ceefe60e58308ffcfc1d93f8ed6226bf25bac85678f1a54caf826340a25542a6 over 39 producing modules. That graph is not on this host and that clone’s scratch evidence is not reachable from here, so every verdict it carried was unverifiable in this checkout. This edition is measured against the graph that is on disk.",
-  "written_at_utc": "2026-09-01T16:57:30Z",
-  "the_test": "AAP 0.5.1, and nothing weaker. A module is COVERED only on injective evidence: a class present in that module’s primary artifact — its main unclassified, non-original-, non--tests JAR — and absent from every other module’s artifacts. A class shared with a same-module sibling still qualifies; a class shared with another module does not. Where no class is exclusive, the module-exclusive META-INF/maven/**/pom.properties node is accepted and named as the weaker witness. A shared package prefix is NEVER admissible evidence — every Spark module shares org.apache.spark, so a prefix test lets one module vouch for a dozen absent ones.",
-  "what_delivery_versus_coverage_mean": "Delivery is proved by the staging manifest, which covers every archive without exception. Coverage asks a different question — whether a module’s own code reached the graph — and is what this file answers.",
-  "graph": {
-    "named_path": "harness/cpg/spark.cpg",
-    "resolved_target": "/opt/blitzy-harness/cpg/spark.cpg",
-    "bytes": 541309809,
-    "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
-    "record_of_account": "harness/artifacts/logs/cpg-identity.txt",
-    "identity_reverified_before_load": true,
-    "written_by": "provisioning, 2026-08-30T19:18:37Z — not by this run, whose frontend terminated at the flatgraph array-length ceiling over the complete staged input and wrote no accepted graph (harness/artifacts/logs/cpg-frontend.log, mechanism re-verified at three heaps - 8g, 64g and 128g - in cpg-ceiling-reverify.log)"
+ "schema_version": 3,
+ "document": "harness/artifacts/logs/cpg-module-coverage.json",
+ "stage": "Stage 2 — per-module coverage of the code-property graph",
+ "supersedes": "the schema-2 edition written in clone w-013 on 2026-09-01T16:57:30Z, which described a graph of 541,309,809 bytes / sha256 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7. Provisioning rebuilt the graph on 2026-09-03T01:40:31Z, so that graph is not on this host and every verdict measured against it was unverifiable here. This edition is measured against the graph that is on disk, by two independent importCpg loads in clone a424a0. Its verdict distribution is unchanged -- 26 covered, 5 without an obtainable witness -- which is the expected outcome, because coverage is a property of the input set and the input set did not change.",
+ "written_at_utc": "2026-09-03T10:33:02Z",
+ "the_test": "AAP 0.5.1, and nothing weaker. A module is COVERED only on injective evidence: a class present in that module’s primary artifact — its main unclassified, non-original-, non--tests JAR — and absent from every other module’s artifacts. A class shared with a same-module sibling still qualifies; a class shared with another module does not. Where no class is exclusive, the module-exclusive META-INF/maven/**/pom.properties node is accepted and named as the weaker witness. A shared package prefix is NEVER admissible evidence — every Spark module shares org.apache.spark, so a prefix test lets one module vouch for a dozen absent ones.",
+ "what_delivery_versus_coverage_mean": "Delivery is proved by the staging manifest, which covers every archive without exception. Coverage asks a different question — whether a module’s own code reached the graph — and is what this file answers.",
+ "graph": {
+  "named_path": "harness/cpg/spark.cpg",
+  "resolved_target": "/opt/blitzy-harness/cpg/spark.cpg",
+  "bytes": 547980224,
+  "sha256": "325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6",
+  "record_of_account": "/opt/blitzy-harness/provision-log/cpg-identity.txt, corroborated by cpg-record.txt; harness/ENVIRONMENT.md section 7 and harness/artifacts/MANIFEST.json .cpg were re-anchored to this pair on 2026-09-03",
+  "identity_reverified_before_load": true,
+  "identity_reverified_how": "size and sha256 recomputed in bash immediately before the load AND again from inside the loading JVM, both against the record of account, on both loads; a mismatch raises and writes nothing (AAP 0.8.2)",
+  "written_by": "provisioning, 2026-09-03T01:40:31Z to 02:11:54Z (31 m 23 s), jimple2cpg over /opt/blitzy-harness/cpg-input --recurse -J-Xmx64g under Temurin 21.0.12.1+1 -- not by this run, which may not rebuild a host-shared graph",
+  "counts_measured_here": {
+   "methods": 1398964,
+   "methods_internal": 1308974,
+   "type_declarations": 119860,
+   "files": 45037
   },
-  "measurements_joined": {
-    "which_evidence_exists": "harness/artifacts/logs/cpg-input-inventory.json, coverage_witnesses",
-    "is_it_in_the_graph": "harness/artifacts/logs/cpg-verify.log, PHASE 2",
-    "note": "Both are files in this checkout; no scratch path outside it is cited."
+  "counts_reproduced": "two independent loads in this clone agreed on all four figures; import elapsed 526,605 ms and 557,041 ms"
+ },
+ "measurements_joined": {
+  "which_evidence_exists": "computed from the 62 archives in /opt/blitzy-harness/cpg-input by reading every archive's entry list: per module, the class set of its primary artifacts, the classes absent from every other module's artifacts, and the module-exclusive META-INF/maven/**/pom.properties entries. This half needs no graph.",
+  "is_it_in_the_graph": "queried with cpg.typeDecl.fullNameExact(<witness>) on the loaded graph, then the matched declarations' methods and files counted. A witness with zero type declarations would be WITNESS ABSENT; none was.",
+  "note": "The two halves are independent: the first can name a witness the graph lacks, and the second can find classes present for a module that owns no admissible witness. Both outcomes are represented in this file."
+ },
+ "totals": {
+  "modules_in_the_graph_input": 31,
+  "verdicts": {
+   "COVERED on injective evidence": 26,
+   "NO VERDICT OBTAINABLE": 5
   },
-  "totals": {
-    "modules_in_the_graph_input": 31,
-    "verdicts": {
-      "COVERED on injective evidence": 26,
-      "NO VERDICT OBTAINABLE": 5
-    },
-    "witnesses_observed_present_in_the_graph": 26,
-    "presence_verdicts": 0,
-    "prefix_verdicts": 0,
-    "note": "Every COVERED verdict rests on a named exclusive class that was then observed as a type declaration in the graph under its exact full name. No verdict rests on presence in the input, on a shared package prefix, or on any witness kind beyond the two the test admits.",
-    "jar_producing_reactor_projects": 38,
-    "of_those_38_covered": 26,
-    "of_those_38_without_a_covered_verdict": 12,
-    "of_the_12_in_the_input_but_owning_no_admissible_witness": 5,
-    "of_the_12_with_no_archive_in_the_input_at_all": 7,
-    "denominator_note": "Two denominators are in play and neither substitutes for the other. 31 is the number of modules contributing an archive to THIS graph's input set, and 26 of 31 carry a COVERED verdict. 38 is the number of JAR-packaging projects the full reactor built, which is the denominator AAP 0.5.1 sets, and 26 of 38 carry a COVERED verdict. Every figure in this file states which of the two it is counted against."
+  "witnesses_observed_present_in_the_graph": 26,
+  "witnesses_absent_from_the_graph": 0,
+  "presence_verdicts": 0,
+  "prefix_verdicts": 0,
+  "note": "Every COVERED verdict rests on a named exclusive class that was then observed as a type declaration in the graph under its exact full name. No verdict rests on presence in the input, on a shared package prefix, or on any witness kind beyond the two the test admits. Two covered witnesses (common_tags, sql_pipelines) report 0 methods: an annotation and a sealed marker type carry none in bytecode, and the test is type-declaration presence, so the method count is corroboration rather than the verdict.",
+  "jar_producing_reactor_projects": 38,
+  "of_those_38_covered": 26,
+  "of_those_38_without_a_covered_verdict": 12,
+  "of_the_12_in_the_input_but_owning_no_admissible_witness": 5,
+  "of_the_12_with_no_archive_in_the_input_at_all": 7,
+  "denominator_note": "Two denominators are in play and neither substitutes for the other. 31 is the number of modules contributing an archive to THIS graph's input set, and 26 of 31 carry a COVERED verdict. 38 is the number of JAR-packaging projects the full reactor built, which is the denominator AAP 0.5.1 sets, and 26 of 38 carry a COVERED verdict. Every figure in this file states which of the two it is counted against.",
+  "count_check": "26 + 5 = 31 modules in the input; 26 + 5 + 7 = 38 JAR-packaging reactor projects; 5 + 7 = 12 without a COVERED verdict."
+ },
+ "aap_0_5_1_coverage_of_all_38_jar_producing_projects": {
+  "requirement": "AAP 0.5.1 requires an injective per-module coverage verdict for every one of the 38 JAR-packaging projects the full-reactor build produced.",
+  "obtainable_from_this_graph": false,
+  "verdict": "NOT OBTAINABLE. A COVERED verdict exists for 26 of the 38 JAR-producing projects. For the remaining 12 no verdict of either admissible kind can be obtained from this graph, and none is asserted. This file therefore does not, and cannot, certify coverage for all 38.",
+  "how_the_26_were_established": "a class present in that project's primary artifact and absent from every other module's artifacts in the input set, then observed in the graph as a type declaration under its exact full name (harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table; per-project rows in this file's entries[])",
+  "why_the_shortfall_is_not_a_build_outcome": "All 38 JAR-packaging projects DID produce their own main artifact. The reactor build succeeded with Maven exit code 0 over all 40 projects (harness/artifacts/logs/build-reactor.log; 'jar-packaging WITHOUT one : []'), and oss-scan-results/build-record.md owns that verdict at '38 of 38 with their own main artifact'. Not one of the twelve is missing because its project failed to build.",
+  "attribution_of_the_shortfall": "The shortfall is a consequence of the GRAPH'S PROVENANCE, not of the build. The graph every stage of this run loads was written by provisioning over a 62-archive staging tree that contains archives from only 31 of the 38 projects, and that vendors five further modules' classes into other modules' shaded archives. This run's own frontend invocation over the complete 191-archive input set failed in flatgraph's string-pool serialization and wrote no accepted graph (harness/artifacts/logs/cpg-frontend.log, mechanism re-verified at three heaps in harness/artifacts/logs/cpg-ceiling-reverify.log), so the all-JAR graph that would carry all 38 projects' bytecode does not exist. That unmet requirement is published as a divergence rather than repaired by trimming the input set or by weakening the witness test.",
+  "what_is_never_done_here": "No verdict is inferred from a shared package prefix, from presence in the input set, from another module's shaded archive, or from any graph other than the one named in this file's graph block. A project with no admissible witness is recorded as having no verdict, never as covered.",
+  "projects_without_a_covered_verdict": {
+   "common/network-common": {
+    "reason_class": "in the input set, but owns no admissible witness",
+    "reason": "all 2,170 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar, so no node is exclusively its own and neither admissible witness kind exists",
+    "module_key_in_entries": "common_network-common",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+   },
+   "common/network-shuffle": {
+    "reason_class": "in the input set, but owns no admissible witness",
+    "reason": "all 92 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar",
+    "module_key_in_entries": "common_network-shuffle",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+   },
+   "common/utils-java": {
+    "reason_class": "in the input set, but owns no admissible witness",
+    "reason": "all 40 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar",
+    "module_key_in_entries": "common_utils-java",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+   },
+   "sql/api": {
+    "reason_class": "in the input set, but owns no admissible witness",
+    "reason": "all 1,203 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into sql/connect/client/jvm's shaded archive",
+    "module_key_in_entries": "sql_api",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+   },
+   "sql/connect/common": {
+    "reason_class": "in the input set, but owns no admissible witness",
+    "reason": "all 1,879 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into sql/connect/server's shaded archive",
+    "module_key_in_entries": "sql_connect_common",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+   },
+   "connector/kafka-0-10": {
+    "reason_class": "no archive in the graph's input set",
+    "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+    "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+   },
+   "connector/kafka-0-10-assembly": {
+    "reason_class": "no archive in the graph's input set",
+    "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+    "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+   },
+   "connector/kafka-0-10-sql": {
+    "reason_class": "no archive in the graph's input set",
+    "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+    "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+   },
+   "connector/kafka-0-10-token-provider": {
+    "reason_class": "no archive in the graph's input set",
+    "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+    "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+   },
+   "examples": {
+    "reason_class": "no archive in the graph's input set",
+    "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact, which the build record notes is written to target/scala-2.13/jars rather than to the build directory's root",
+    "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+   },
+   "sql/connect/shims": {
+    "reason_class": "no archive in the graph's input set",
+    "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact, and the provisioning runbook excluded its two archives from the staging tree deliberately. One consequence is measurable and is recorded rather than left implicit: because the shims archives are absent, the eleven classes this project ships as client-only stubs appear in the graph with their real implementations rather than as stubs (harness/artifacts/logs/cpg-shims-collision-measurement.log)",
+    "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+   },
+   "tools": {
+    "reason_class": "no archive in the graph's input set",
+    "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+    "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+    "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+   }
   },
-  "aap_0_5_1_coverage_of_all_38_jar_producing_projects": {
-    "requirement": "AAP 0.5.1 requires an injective per-module coverage verdict for every one of the 38 JAR-packaging projects the full-reactor build produced.",
-    "obtainable_from_this_graph": false,
-    "verdict": "NOT OBTAINABLE. A COVERED verdict exists for 26 of the 38 JAR-producing projects. For the remaining 12 no verdict of either admissible kind can be obtained from this graph, and none is asserted. This file therefore does not, and cannot, certify coverage for all 38.",
-    "how_the_26_were_established": "a class present in that project's primary artifact and absent from every other module's artifacts in the input set, then observed in the graph as a type declaration under its exact full name (harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table; per-project rows in this file's entries[])",
-    "why_the_shortfall_is_not_a_build_outcome": "All 38 JAR-packaging projects DID produce their own main artifact. The reactor build succeeded with Maven exit code 0 over all 40 projects (harness/artifacts/logs/build-reactor.log; 'jar-packaging WITHOUT one : []'), and oss-scan-results/build-record.md owns that verdict at '38 of 38 with their own main artifact'. Not one of the twelve is missing because its project failed to build.",
-    "attribution_of_the_shortfall": "The shortfall is a consequence of the GRAPH'S PROVENANCE, not of the build. The graph every stage of this run loads was written by provisioning over a 62-archive staging tree that contains archives from only 31 of the 38 projects, and that vendors five further modules' classes into other modules' shaded archives. This run's own frontend invocation over the complete 191-archive input set failed in flatgraph's string-pool serialization and wrote no accepted graph (harness/artifacts/logs/cpg-frontend.log, mechanism re-verified at three heaps in harness/artifacts/logs/cpg-ceiling-reverify.log), so the all-JAR graph that would carry all 38 projects' bytecode does not exist. That unmet requirement is published as a divergence rather than repaired by trimming the input set or by weakening the witness test.",
-    "what_is_never_done_here": "No verdict is inferred from a shared package prefix, from presence in the input set, from another module's shaded archive, or from any graph other than the one named in this file's graph block. A project with no admissible witness is recorded as having no verdict, never as covered.",
-    "projects_without_a_covered_verdict": {
-      "common/network-common": {
-        "reason_class": "in the input set, but owns no admissible witness",
-        "reason": "all 2,170 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar, so no node is exclusively its own and neither admissible witness kind exists",
-        "module_key_in_entries": "common_network-common",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-      },
-      "common/network-shuffle": {
-        "reason_class": "in the input set, but owns no admissible witness",
-        "reason": "all 92 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar",
-        "module_key_in_entries": "common_network-shuffle",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-      },
-      "common/utils-java": {
-        "reason_class": "in the input set, but owns no admissible witness",
-        "reason": "all 40 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar",
-        "module_key_in_entries": "common_utils-java",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-      },
-      "sql/api": {
-        "reason_class": "in the input set, but owns no admissible witness",
-        "reason": "all 1,203 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into sql/connect/client/jvm's shaded archive",
-        "module_key_in_entries": "sql_api",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-      },
-      "sql/connect/common": {
-        "reason_class": "in the input set, but owns no admissible witness",
-        "reason": "all 1,879 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into sql/connect/server's shaded archive",
-        "module_key_in_entries": "sql_connect_common",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-      },
-      "connector/kafka-0-10": {
-        "reason_class": "no archive in the graph's input set",
-        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
-        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
-      },
-      "connector/kafka-0-10-assembly": {
-        "reason_class": "no archive in the graph's input set",
-        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
-        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
-      },
-      "connector/kafka-0-10-sql": {
-        "reason_class": "no archive in the graph's input set",
-        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
-        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
-      },
-      "connector/kafka-0-10-token-provider": {
-        "reason_class": "no archive in the graph's input set",
-        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
-        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
-      },
-      "examples": {
-        "reason_class": "no archive in the graph's input set",
-        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact, which the build record notes is written to target/scala-2.13/jars rather than to the build directory's root",
-        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
-      },
-      "sql/connect/shims": {
-        "reason_class": "no archive in the graph's input set",
-        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact, and the provisioning runbook excluded its two archives from the staging tree deliberately. One consequence is measurable and is recorded rather than left implicit: because the shims archives are absent, the eleven classes this project ships as client-only stubs appear in the graph with their real implementations rather than as stubs (harness/artifacts/logs/cpg-shims-collision-measurement.log)",
-        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
-      },
-      "tools": {
-        "reason_class": "no archive in the graph's input set",
-        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
-        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
-        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
-      }
-    },
-    "count_check": "5 projects in the input with no admissible witness + 7 projects with no archive in the input = 12 without a COVERED verdict; 12 + 26 covered = 38, the full count of JAR-packaging reactor projects.",
-    "a_verdict_for_all_38_would_require": "a graph over every archive the full-reactor build produced, which the pinned frontend cannot persist at this input breadth (harness/artifacts/logs/cpg-frontend.log STEP 8), and whose absence is divergence D1 in oss-scan-results/run-record.md. Nothing in this file substitutes a narrower graph for it."
+  "count_check": "5 projects in the input with no admissible witness + 7 projects with no archive in the input = 12 without a COVERED verdict; 12 + 26 covered = 38, the full count of JAR-packaging reactor projects.",
+  "a_verdict_for_all_38_would_require": "a graph over every archive the full-reactor build produced, which the pinned frontend cannot persist at this input breadth (harness/artifacts/logs/cpg-frontend.log STEP 8), and whose absence is divergence D1 in oss-scan-results/run-record.md. Nothing in this file substitutes a narrower graph for it."
+ },
+ "reactor_jar_projects_absent_from_the_graph_input": {
+  "connector/kafka-0-10": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
+  "connector/kafka-0-10-assembly": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
+  "connector/kafka-0-10-sql": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
+  "connector/kafka-0-10-token-provider": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
+  "examples": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
+  "sql/connect/shims": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
+  "tools": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it"
+ },
+ "entries": [
+  {
+   "module": "common_kvstore",
+   "primary_artifacts": [
+    "spark-kvstore_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 39,
+   "exclusive_class_count": 38,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-kvstore_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.util.kvstore.ArrayWrappers",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 4,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
   },
-  "reactor_jar_projects_absent_from_the_graph_input": {
-    "connector/kafka-0-10": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
-    "connector/kafka-0-10-assembly": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
-    "connector/kafka-0-10-sql": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
-    "connector/kafka-0-10-token-provider": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
-    "examples": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
-    "sql/connect/shims": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",
-    "tools": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it"
+  {
+   "module": "common_network-common",
+   "primary_artifacts": [
+    "spark-network-common_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 2170,
+   "exclusive_class_count": 0,
+   "exclusive_pom_properties": [],
+   "verdict": "NO VERDICT OBTAINABLE",
+   "witness_kind": "none admissible -- no class and no META-INF/maven coordinate node of this module is absent from every other module's artifacts",
+   "witness": null,
+   "class_queried_for_corroboration": "org.apache.spark.network.sasl.SaslTimeoutException",
+   "observed_in_graph": true,
+   "observed_type_declarations": 3,
+   "observed_methods": 9,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table",
+   "why_no_verdict": "Every class in this module's primary artifact, and both of its META-INF/maven pom.properties entries, are also present in another module's artifact, so no witness can be injective. Measured, not assumed: see vendoring_that_destroys_exclusivity below.",
+   "corroboration_only": "3 type declarations for org.apache.spark.network.sasl.SaslTimeoutException are in the graph, so this module's code did reach it -- but by an artifact that vendors it, so the evidence is not injective and AAP 0.5.1 does not admit it as coverage."
   },
-  "entries": [
-    {
-      "module": "common_kvstore",
-      "primary_artifacts": [
-        "common_kvstore__spark-kvstore_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 39,
-      "exclusive_class_count": 38,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-kvstore_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.util.kvstore.ArrayWrappers",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 4,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "common_network-common",
-      "primary_artifacts": [
-        "common_network-common__spark-network-common_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 2170,
-      "exclusive_class_count": 0,
-      "exclusive_pom_properties": [],
-      "verdict": "NO VERDICT OBTAINABLE",
-      "witness_kind": "none available",
-      "witness": null,
-      "observed_in_graph": null,
-      "why_no_witness": "every class of this module's primary artifact, and its META-INF/maven pom.properties, are also vendored into another module's shaded archive, so no node is exclusively its own and neither admissible witness kind exists",
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-    },
-    {
-      "module": "common_network-shuffle",
-      "primary_artifacts": [
-        "common_network-shuffle__spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 92,
-      "exclusive_class_count": 0,
-      "exclusive_pom_properties": [],
-      "verdict": "NO VERDICT OBTAINABLE",
-      "witness_kind": "none available",
-      "witness": null,
-      "observed_in_graph": null,
-      "why_no_witness": "every class of this module's primary artifact, and its META-INF/maven pom.properties, are also vendored into another module's shaded archive, so no node is exclusively its own and neither admissible witness kind exists",
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-    },
-    {
-      "module": "common_network-yarn",
-      "primary_artifacts": [
-        "common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar",
-        "common_network-yarn__spark-network-yarn_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 11070,
-      "exclusive_class_count": 6175,
-      "exclusive_pom_properties": [
-        "META-INF/maven/com.fasterxml.jackson.core/jackson-annotations/pom.properties",
-        "META-INF/maven/com.fasterxml.jackson.core/jackson-core/pom.properties",
-        "META-INF/maven/com.fasterxml.jackson.core/jackson-databind/pom.properties",
-        "META-INF/maven/io.dropwizard.metrics/metrics-core/pom.properties",
-        "META-INF/maven/io.netty/netty-all/pom.properties",
-        "META-INF/maven/io.netty/netty-codec-classes-quic/pom.properties",
-        "META-INF/maven/io.netty/netty-codec-dns/pom.properties",
-        "META-INF/maven/io.netty/netty-codec-http3/pom.properties",
-        "META-INF/maven/io.netty/netty-codec-marshalling/pom.properties",
-        "META-INF/maven/io.netty/netty-codec-native-quic/pom.properties",
-        "META-INF/maven/io.netty/netty-codec-protobuf/pom.properties",
-        "META-INF/maven/io.netty/netty-codec/pom.properties",
-        "META-INF/maven/io.netty/netty-resolver-dns/pom.properties",
-        "META-INF/maven/io.netty/netty-tcnative-boringssl-static/pom.properties",
-        "META-INF/maven/io.netty/netty-tcnative-classes/pom.properties",
-        "META-INF/maven/io.netty/netty-transport-classes-epoll/pom.properties",
-        "META-INF/maven/io.netty/netty-transport-classes-io_uring/pom.properties",
-        "META-INF/maven/io.netty/netty-transport-classes-kqueue/pom.properties",
-        "META-INF/maven/io.netty/netty-transport-native-epoll/pom.properties",
-        "META-INF/maven/io.netty/netty-transport-native-io_uring/pom.properties",
-        "META-INF/maven/io.netty/netty-transport-native-kqueue/pom.properties",
-        "META-INF/maven/org.apache.commons/commons-crypto/pom.properties",
-        "META-INF/maven/org.apache.commons/commons-lang3/pom.properties",
-        "META-INF/maven/org.apache.logging.log4j/log4j-1.2-api/pom.properties",
-        "META-INF/maven/org.apache.logging.log4j/log4j-api/pom.properties",
-        "META-INF/maven/org.apache.logging.log4j/log4j-core/pom.properties",
-        "META-INF/maven/org.apache.logging.log4j/log4j-layout-template-json/pom.properties",
-        "META-INF/maven/org.apache.logging.log4j/log4j-slf4j2-impl/pom.properties",
-        "META-INF/maven/org.apache.spark/spark-network-yarn_2.13/pom.properties",
-        "META-INF/maven/org.fusesource.leveldbjni/leveldbjni-all/pom.properties",
-        "META-INF/maven/org.slf4j/jcl-over-slf4j/pom.properties",
-        "META-INF/maven/org.slf4j/jul-to-slf4j/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.network.yarn.YarnShuffleService",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 36,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "common_sketch",
-      "primary_artifacts": [
-        "common_sketch__spark-sketch_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 16,
-      "exclusive_class_count": 15,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-sketch_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.util.sketch.BitArray",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 28,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "common_tags",
-      "primary_artifacts": [
-        "common_tags__spark-tags_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 12,
-      "exclusive_class_count": 11,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-tags_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.annotation.AlphaComponent",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 0,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "common_unsafe",
-      "primary_artifacts": [
-        "common_unsafe__spark-unsafe_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 65,
-      "exclusive_class_count": 64,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-unsafe_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.catalyst.expressions.HiveHasher",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 12,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "common_utils",
-      "primary_artifacts": [
-        "common_utils__spark-common-utils_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 164,
-      "exclusive_class_count": 163,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-common-utils_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.BreakingChangeInfo",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 16,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "common_utils-java",
-      "primary_artifacts": [
-        "common_utils-java__spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 40,
-      "exclusive_class_count": 0,
-      "exclusive_pom_properties": [],
-      "verdict": "NO VERDICT OBTAINABLE",
-      "witness_kind": "none available",
-      "witness": null,
-      "observed_in_graph": null,
-      "why_no_witness": "every class of this module's primary artifact, and its META-INF/maven pom.properties, are also vendored into another module's shaded archive, so no node is exclusively its own and neither admissible witness kind exists",
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-    },
-    {
-      "module": "common_variant",
-      "primary_artifacts": [
-        "common_variant__spark-variant_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 34,
-      "exclusive_class_count": 33,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-variant_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.types.variant.ShreddingUtils",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 8,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "connector_avro",
-      "primary_artifacts": [
-        "connector_avro__spark-avro_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 24,
-      "exclusive_class_count": 23,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-avro_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.avro.AvroDataToCatalyst",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 106,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "connector_protobuf",
-      "primary_artifacts": [
-        "connector_protobuf__spark-protobuf_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 825,
-      "exclusive_class_count": 825,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-protobuf_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.protobuf.CatalystDataToProtobuf",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 82,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "core",
-      "primary_artifacts": [
-        "core__spark-core_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 5097,
-      "exclusive_class_count": 5096,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-core_2.13/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-client/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-http/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-io/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-plus/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-proxy/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-security/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-server/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-servlet/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-servlets/pom.properties",
-        "META-INF/maven/org.eclipse.jetty/jetty-util/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.Aggregator",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 54,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "graphx",
-      "primary_artifacts": [
-        "graphx__spark-graphx_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 132,
-      "exclusive_class_count": 131,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-graphx_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.graphx.Edge",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 120,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "launcher",
-      "primary_artifacts": [
-        "launcher__spark-launcher_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 33,
-      "exclusive_class_count": 32,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-launcher_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.launcher.AbstractAppHandle",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 30,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "mllib",
-      "primary_artifacts": [
-        "mllib__spark-mllib_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 2646,
-      "exclusive_class_count": 2645,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-mllib_2.13/pom.properties",
-        "META-INF/maven/org.jpmml/pmml-model/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.ml.Estimator",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 20,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "mllib-local",
-      "primary_artifacts": [
-        "mllib-local__spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 23,
-      "exclusive_class_count": 22,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-mllib-local_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.ml.impl.Utils",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 12,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "repl",
-      "primary_artifacts": [
-        "repl__spark-repl_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 9,
-      "exclusive_class_count": 8,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-repl_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.repl.Main",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 24,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "resource-managers_kubernetes_core",
-      "primary_artifacts": [
-        "resource-managers_kubernetes_core__spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 145,
-      "exclusive_class_count": 144,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-kubernetes_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.deploy.k8s.Config",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 254,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "resource-managers_yarn",
-      "primary_artifacts": [
-        "resource-managers_yarn__spark-yarn_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 79,
-      "exclusive_class_count": 78,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-yarn_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.deploy.yarn.AmIpFilter",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 18,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "sql_api",
-      "primary_artifacts": [
-        "sql_api__spark-sql-api_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 1203,
-      "exclusive_class_count": 0,
-      "exclusive_pom_properties": [],
-      "verdict": "NO VERDICT OBTAINABLE",
-      "witness_kind": "none available",
-      "witness": null,
-      "observed_in_graph": null,
-      "why_no_witness": "every class of this module's primary artifact, and its META-INF/maven pom.properties, are also vendored into another module's shaded archive, so no node is exclusively its own and neither admissible witness kind exists",
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-    },
-    {
-      "module": "sql_catalyst",
-      "primary_artifacts": [
-        "sql_catalyst__spark-catalyst_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 5333,
-      "exclusive_class_count": 5332,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-catalyst_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.catalyst.AliasIdentifier",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 40,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "sql_connect_client_jdbc",
-      "primary_artifacts": [
-        "sql_connect_client_jdbc__spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 2,
-      "exclusive_class_count": 2,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-connect-client-jdbc_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 16,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "sql_connect_client_jvm",
-      "primary_artifacts": [
-        "sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 12652,
-      "exclusive_class_count": 4970,
-      "exclusive_pom_properties": [
-        "META-INF/maven/com.google.flatbuffers/flatbuffers-java/pom.properties",
-        "META-INF/maven/org.apache.arrow/arrow-format/pom.properties",
-        "META-INF/maven/org.apache.arrow/arrow-memory-core/pom.properties",
-        "META-INF/maven/org.apache.arrow/arrow-memory-netty-buffer-patch/pom.properties",
-        "META-INF/maven/org.apache.arrow/arrow-memory-netty/pom.properties",
-        "META-INF/maven/org.apache.arrow/arrow-vector/pom.properties",
-        "META-INF/maven/org.apache.spark/spark-connect-client-jvm_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.application.ConnectRepl",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 2,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "sql_connect_common",
-      "primary_artifacts": [
-        "sql_connect_common__spark-connect-common_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 1879,
-      "exclusive_class_count": 0,
-      "exclusive_pom_properties": [],
-      "verdict": "NO VERDICT OBTAINABLE",
-      "witness_kind": "none available",
-      "witness": null,
-      "observed_in_graph": null,
-      "why_no_witness": "every class of this module's primary artifact, and its META-INF/maven pom.properties, are also vendored into another module's shaded archive, so no node is exclusively its own and neither admissible witness kind exists",
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
-    },
-    {
-      "module": "sql_connect_server",
-      "primary_artifacts": [
-        "sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 8050,
-      "exclusive_class_count": 4153,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-connect_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.connect.SimpleSparkConnectService",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 2,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "sql_core",
-      "primary_artifacts": [
-        "sql_core__spark-sql_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 3879,
-      "exclusive_class_count": 3878,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-sql_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.DataSourceRegistration",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 72,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "sql_hive",
-      "primary_artifacts": [
-        "sql_hive__spark-hive_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 149,
-      "exclusive_class_count": 148,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-hive_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.hive.DeferredObjectAdapter",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 36,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "sql_hive-thriftserver",
-      "primary_artifacts": [
-        "sql_hive-thriftserver__spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 211,
-      "exclusive_class_count": 210,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-hive-thriftserver_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.hive.thriftserver.ArrayFetchIterator",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 258,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "sql_pipelines",
-      "primary_artifacts": [
-        "sql_pipelines__spark-pipelines_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 285,
-      "exclusive_class_count": 284,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-pipelines_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.sql.pipelines.AnalysisWarning",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 0,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    },
-    {
-      "module": "streaming",
-      "primary_artifacts": [
-        "streaming__spark-streaming_2.13-4.1.0-SNAPSHOT.jar"
-      ],
-      "primary_class_count": 359,
-      "exclusive_class_count": 358,
-      "exclusive_pom_properties": [
-        "META-INF/maven/org.apache.spark/spark-streaming_2.13/pom.properties"
-      ],
-      "verdict": "COVERED on injective evidence",
-      "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
-      "witness": "org.apache.spark.status.api.v1.streaming.ApiStreamingApp",
-      "observed_in_graph": true,
-      "observed_type_declarations": 2,
-      "observed_methods": 16,
-      "observed_files": 1,
-      "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
-    }
-  ]
+  {
+   "module": "common_network-shuffle",
+   "primary_artifacts": [
+    "spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 92,
+   "exclusive_class_count": 0,
+   "exclusive_pom_properties": [],
+   "verdict": "NO VERDICT OBTAINABLE",
+   "witness_kind": "none admissible -- no class and no META-INF/maven coordinate node of this module is absent from every other module's artifacts",
+   "witness": null,
+   "class_queried_for_corroboration": "org.apache.spark.network.shuffle.AppsWithRecoveryDisabled",
+   "observed_in_graph": true,
+   "observed_type_declarations": 3,
+   "observed_methods": 15,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table",
+   "why_no_verdict": "Every class in this module's primary artifact, and both of its META-INF/maven pom.properties entries, are also present in another module's artifact, so no witness can be injective. Measured, not assumed: see vendoring_that_destroys_exclusivity below.",
+   "corroboration_only": "3 type declarations for org.apache.spark.network.shuffle.AppsWithRecoveryDisabled are in the graph, so this module's code did reach it -- but by an artifact that vendors it, so the evidence is not injective and AAP 0.5.1 does not admit it as coverage."
+  },
+  {
+   "module": "common_network-yarn",
+   "primary_artifacts": [
+    "spark-4.1.0-SNAPSHOT-yarn-shuffle.jar",
+    "spark-network-yarn_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 11070,
+   "exclusive_class_count": 6175,
+   "exclusive_pom_properties": [
+    "META-INF/maven/com.fasterxml.jackson.core/jackson-annotations/pom.properties",
+    "META-INF/maven/com.fasterxml.jackson.core/jackson-core/pom.properties",
+    "META-INF/maven/com.fasterxml.jackson.core/jackson-databind/pom.properties",
+    "META-INF/maven/io.dropwizard.metrics/metrics-core/pom.properties",
+    "META-INF/maven/io.netty/netty-all/pom.properties",
+    "META-INF/maven/io.netty/netty-codec-classes-quic/pom.properties",
+    "META-INF/maven/io.netty/netty-codec-dns/pom.properties",
+    "META-INF/maven/io.netty/netty-codec-http3/pom.properties",
+    "META-INF/maven/io.netty/netty-codec-marshalling/pom.properties",
+    "META-INF/maven/io.netty/netty-codec-native-quic/pom.properties",
+    "META-INF/maven/io.netty/netty-codec-protobuf/pom.properties",
+    "META-INF/maven/io.netty/netty-codec/pom.properties",
+    "META-INF/maven/io.netty/netty-resolver-dns/pom.properties",
+    "META-INF/maven/io.netty/netty-tcnative-boringssl-static/pom.properties",
+    "META-INF/maven/io.netty/netty-tcnative-classes/pom.properties",
+    "META-INF/maven/io.netty/netty-transport-classes-epoll/pom.properties",
+    "META-INF/maven/io.netty/netty-transport-classes-io_uring/pom.properties",
+    "META-INF/maven/io.netty/netty-transport-classes-kqueue/pom.properties",
+    "META-INF/maven/io.netty/netty-transport-native-epoll/pom.properties",
+    "META-INF/maven/io.netty/netty-transport-native-io_uring/pom.properties",
+    "META-INF/maven/io.netty/netty-transport-native-kqueue/pom.properties",
+    "META-INF/maven/org.apache.commons/commons-crypto/pom.properties",
+    "META-INF/maven/org.apache.commons/commons-lang3/pom.properties",
+    "META-INF/maven/org.apache.logging.log4j/log4j-1.2-api/pom.properties",
+    "META-INF/maven/org.apache.logging.log4j/log4j-api/pom.properties",
+    "META-INF/maven/org.apache.logging.log4j/log4j-core/pom.properties",
+    "META-INF/maven/org.apache.logging.log4j/log4j-layout-template-json/pom.properties",
+    "META-INF/maven/org.apache.logging.log4j/log4j-slf4j2-impl/pom.properties",
+    "META-INF/maven/org.apache.spark/spark-network-yarn_2.13/pom.properties",
+    "META-INF/maven/org.fusesource.leveldbjni/leveldbjni-all/pom.properties",
+    "META-INF/maven/org.slf4j/jcl-over-slf4j/pom.properties",
+    "META-INF/maven/org.slf4j/jul-to-slf4j/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.network.yarn.YarnShuffleService",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 36,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "common_sketch",
+   "primary_artifacts": [
+    "spark-sketch_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 16,
+   "exclusive_class_count": 15,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-sketch_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.util.sketch.BitArray",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 28,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "common_tags",
+   "primary_artifacts": [
+    "spark-tags_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 12,
+   "exclusive_class_count": 11,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-tags_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.annotation.AlphaComponent",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 0,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "common_unsafe",
+   "primary_artifacts": [
+    "spark-unsafe_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 65,
+   "exclusive_class_count": 64,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-unsafe_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.catalyst.expressions.HiveHasher",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 12,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "common_utils",
+   "primary_artifacts": [
+    "spark-common-utils_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 164,
+   "exclusive_class_count": 163,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-common-utils_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.BreakingChangeInfo",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 16,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "common_utils-java",
+   "primary_artifacts": [
+    "spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 40,
+   "exclusive_class_count": 0,
+   "exclusive_pom_properties": [],
+   "verdict": "NO VERDICT OBTAINABLE",
+   "witness_kind": "none admissible -- no class and no META-INF/maven coordinate node of this module is absent from every other module's artifacts",
+   "witness": null,
+   "class_queried_for_corroboration": "org.apache.spark.internal.LogKey",
+   "observed_in_graph": true,
+   "observed_type_declarations": 3,
+   "observed_methods": 3,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table",
+   "why_no_verdict": "Every class in this module's primary artifact, and both of its META-INF/maven pom.properties entries, are also present in another module's artifact, so no witness can be injective. Measured, not assumed: see vendoring_that_destroys_exclusivity below.",
+   "corroboration_only": "3 type declarations for org.apache.spark.internal.LogKey are in the graph, so this module's code did reach it -- but by an artifact that vendors it, so the evidence is not injective and AAP 0.5.1 does not admit it as coverage."
+  },
+  {
+   "module": "common_variant",
+   "primary_artifacts": [
+    "spark-variant_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 34,
+   "exclusive_class_count": 33,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-variant_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.types.variant.ShreddingUtils",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 8,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "connector_avro",
+   "primary_artifacts": [
+    "spark-avro_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 24,
+   "exclusive_class_count": 23,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-avro_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.avro.AvroDataToCatalyst",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 106,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "connector_protobuf",
+   "primary_artifacts": [
+    "spark-protobuf_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 825,
+   "exclusive_class_count": 825,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-protobuf_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.protobuf.CatalystDataToProtobuf",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 82,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "core",
+   "primary_artifacts": [
+    "spark-core_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 5097,
+   "exclusive_class_count": 5096,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-core_2.13/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-client/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-http/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-io/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-plus/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-proxy/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-security/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-server/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-servlet/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-servlets/pom.properties",
+    "META-INF/maven/org.eclipse.jetty/jetty-util/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.Aggregator",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 54,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "graphx",
+   "primary_artifacts": [
+    "spark-graphx_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 132,
+   "exclusive_class_count": 131,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-graphx_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.graphx.Edge",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 120,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "launcher",
+   "primary_artifacts": [
+    "spark-launcher_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 33,
+   "exclusive_class_count": 32,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-launcher_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.launcher.AbstractAppHandle",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 30,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "mllib",
+   "primary_artifacts": [
+    "spark-mllib_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 2646,
+   "exclusive_class_count": 2645,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-mllib_2.13/pom.properties",
+    "META-INF/maven/org.jpmml/pmml-model/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.ml.Estimator",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 20,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "mllib-local",
+   "primary_artifacts": [
+    "spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 23,
+   "exclusive_class_count": 22,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-mllib-local_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.ml.impl.Utils",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 12,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "repl",
+   "primary_artifacts": [
+    "spark-repl_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 9,
+   "exclusive_class_count": 8,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-repl_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.repl.Main",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 24,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "resource-managers_kubernetes_core",
+   "primary_artifacts": [
+    "spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 145,
+   "exclusive_class_count": 144,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-kubernetes_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.deploy.k8s.Config",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 254,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "resource-managers_yarn",
+   "primary_artifacts": [
+    "spark-yarn_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 79,
+   "exclusive_class_count": 78,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-yarn_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.deploy.yarn.AmIpFilter",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 18,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "sql_api",
+   "primary_artifacts": [
+    "spark-sql-api_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 1203,
+   "exclusive_class_count": 0,
+   "exclusive_pom_properties": [],
+   "verdict": "NO VERDICT OBTAINABLE",
+   "witness_kind": "none admissible -- no class and no META-INF/maven coordinate node of this module is absent from every other module's artifacts",
+   "witness": null,
+   "class_queried_for_corroboration": "org.apache.spark.sql.types.YearMonthIntervalType",
+   "observed_in_graph": true,
+   "observed_type_declarations": 3,
+   "observed_methods": 90,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table",
+   "why_no_verdict": "Every class in this module's primary artifact, and both of its META-INF/maven pom.properties entries, are also present in another module's artifact, so no witness can be injective. Measured, not assumed: see vendoring_that_destroys_exclusivity below.",
+   "corroboration_only": "3 type declarations for org.apache.spark.sql.types.YearMonthIntervalType are in the graph, so this module's code did reach it -- but by an artifact that vendors it, so the evidence is not injective and AAP 0.5.1 does not admit it as coverage."
+  },
+  {
+   "module": "sql_catalyst",
+   "primary_artifacts": [
+    "spark-catalyst_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 5333,
+   "exclusive_class_count": 5332,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-catalyst_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.catalyst.AliasIdentifier",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 40,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "sql_connect_client_jdbc",
+   "primary_artifacts": [
+    "spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 2,
+   "exclusive_class_count": 2,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-connect-client-jdbc_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 16,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "sql_connect_client_jvm",
+   "primary_artifacts": [
+    "spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 12652,
+   "exclusive_class_count": 4970,
+   "exclusive_pom_properties": [
+    "META-INF/maven/com.google.flatbuffers/flatbuffers-java/pom.properties",
+    "META-INF/maven/org.apache.arrow/arrow-format/pom.properties",
+    "META-INF/maven/org.apache.arrow/arrow-memory-core/pom.properties",
+    "META-INF/maven/org.apache.arrow/arrow-memory-netty-buffer-patch/pom.properties",
+    "META-INF/maven/org.apache.arrow/arrow-memory-netty/pom.properties",
+    "META-INF/maven/org.apache.arrow/arrow-vector/pom.properties",
+    "META-INF/maven/org.apache.spark/spark-connect-client-jvm_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.application.ConnectRepl",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 2,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "sql_connect_common",
+   "primary_artifacts": [
+    "spark-connect-common_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 1879,
+   "exclusive_class_count": 0,
+   "exclusive_pom_properties": [],
+   "verdict": "NO VERDICT OBTAINABLE",
+   "witness_kind": "none admissible -- no class and no META-INF/maven coordinate node of this module is absent from every other module's artifacts",
+   "witness": null,
+   "class_queried_for_corroboration": "org.apache.spark.connect.proto.ChunkedCachedLocalRelationOrBuilder",
+   "observed_in_graph": true,
+   "observed_type_declarations": 4,
+   "observed_methods": 28,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table",
+   "why_no_verdict": "Every class in this module's primary artifact, and both of its META-INF/maven pom.properties entries, are also present in another module's artifact, so no witness can be injective. Measured, not assumed: see vendoring_that_destroys_exclusivity below.",
+   "corroboration_only": "4 type declarations for org.apache.spark.connect.proto.ChunkedCachedLocalRelationOrBuilder are in the graph, so this module's code did reach it -- but by an artifact that vendors it, so the evidence is not injective and AAP 0.5.1 does not admit it as coverage."
+  },
+  {
+   "module": "sql_connect_server",
+   "primary_artifacts": [
+    "spark-connect_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 8050,
+   "exclusive_class_count": 4153,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-connect_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.connect.SimpleSparkConnectService",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 2,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "sql_core",
+   "primary_artifacts": [
+    "spark-sql_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 3879,
+   "exclusive_class_count": 3878,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-sql_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.DataSourceRegistration",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 72,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "sql_hive",
+   "primary_artifacts": [
+    "spark-hive_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 149,
+   "exclusive_class_count": 148,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-hive_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.hive.DeferredObjectAdapter",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 36,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "sql_hive-thriftserver",
+   "primary_artifacts": [
+    "spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 211,
+   "exclusive_class_count": 210,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-hive-thriftserver_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.hive.thriftserver.ArrayFetchIterator",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 258,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "sql_pipelines",
+   "primary_artifacts": [
+    "spark-pipelines_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 285,
+   "exclusive_class_count": 284,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-pipelines_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.sql.pipelines.AnalysisWarning",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 0,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  },
+  {
+   "module": "streaming",
+   "primary_artifacts": [
+    "spark-streaming_2.13-4.1.0-SNAPSHOT.jar"
+   ],
+   "primary_class_count": 359,
+   "exclusive_class_count": 358,
+   "exclusive_pom_properties": [
+    "META-INF/maven/org.apache.spark/spark-streaming_2.13/pom.properties"
+   ],
+   "verdict": "COVERED on injective evidence",
+   "witness_kind": "a class present in this module's primary artifact and absent from every other module's",
+   "witness": "org.apache.spark.status.api.v1.streaming.ApiStreamingApp",
+   "class_queried_for_corroboration": null,
+   "observed_in_graph": true,
+   "observed_type_declarations": 2,
+   "observed_methods": 16,
+   "observed_files": 1,
+   "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table"
+  }
+ ],
+ "vendoring_that_destroys_exclusivity": {
+  "what_this_is": "the measurement behind the five NO VERDICT OBTAINABLE verdicts, so the verdict is checkable rather than asserted",
+  "how_measured": "for each of the five, every class of its primary artifact and every one of its pom.properties entries was searched across all 62 archives of the other 30 modules",
+  "per_module": {
+   "common_network-common": {
+    "classes": 2170,
+    "held_by": "common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (all 2,170)",
+    "pom_properties_also_in": 28
+   },
+   "common_network-shuffle": {
+    "classes": 92,
+    "held_by": "common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (all 92)",
+    "pom_properties_also_in": 28
+   },
+   "common_utils-java": {
+    "classes": 40,
+    "held_by": "common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (all 40)",
+    "pom_properties_also_in": 28
+   },
+   "sql_api": {
+    "classes": 1203,
+    "held_by": "sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar (all 1,203)",
+    "pom_properties_also_in": 28
+   },
+   "sql_connect_common": {
+    "classes": 1879,
+    "held_by": "sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT.jar (all 1,879); sql_connect_client_jvm holds 1,868 of them",
+    "pom_properties_also_in": 28
+   }
+  },
+  "the_shared_pom_properties": "META-INF/maven/org.spark-project.spark/unused/pom.properties is present in 29 of the 31 modules' artifacts, which is why a pom.properties witness is not automatically exclusive either.",
+  "correction_to_the_provisioning_record": {
+   "record": "/opt/blitzy-harness/provision-log/cpg-record.txt line 10 states '31 of 31 contributing modules covered (26 by a class unique to that module's artifact, 5 by the module-exclusive META-INF/maven coordinate node)'.",
+   "observation": "The five modules in question own NO module-exclusive pom.properties: each of their coordinate nodes is also present in another module's artifact, as the per_module table above measures. So the 5-by-coordinate-node half of that claim does not hold, and 31 of 31 overstates the obtainable coverage.",
+   "verdict": "The record is corrected here, on measurement. This is a derived analytical verdict this run re-measures rather than an inherited configuration fact, so AAP 0.1.3's halt case does not apply; both values are recorded and the measured one governs. The schema-2 edition of this file already carried the correct 26/5 split, so this file and the provisioning record disagreed before this run and now disagree explicitly rather than silently."
+  }
+ }
 }

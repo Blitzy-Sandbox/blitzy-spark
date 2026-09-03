@@ -973,7 +973,7 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
     filename to the word "line", and it silently recognised NOTHING in one whole
     document, because these documents write citations the way people do:
 
-        `cpg-verify.log` records the current pair -- 541,309,809 / `4616845a...`, at its
+        `cpg-verify.log` records the current pair -- 547,980,224 / `325887cf...`, at its
         lines 33-34 and again at 47-50 -- and mentions the earlier one only at its
         lines 76-80
 
@@ -1594,12 +1594,12 @@ SELF_TEST_CASES: tuple[tuple[str, bool, str, str, tuple[str, object]], ...] = (
     # cpg-verify.log paragraph, and mutating it to lines that do not exist once passed.
     ("prose locator behind an intervening clause, out of range",
      True, "line",
-     "`harness/artifacts/logs/cpg-verify.log`" + " records the **current** pair -- 541,309,809 / `4616845a...`, at its "
+     "`harness/artifacts/logs/cpg-verify.log`" + " records the **current** pair -- 547,980,224 / `325887cf...`, at its "
      "lines 99998-99999 and again at 99000-99001 -- and nothing else.",
      ("offender", "line 99999")),
     ("prose locator behind an intervening clause, in range",
      False, "line",
-     "`harness/artifacts/logs/cpg-verify.log`" + " records the **current** pair -- 541,309,809 / `4616845a...`, at its "
+     "`harness/artifacts/logs/cpg-verify.log`" + " records the **current** pair -- 547,980,224 / `325887cf...`, at its "
      "lines 33-34 and again at 47-50 -- and nothing else.",
      ("live", 4)),
     ("bare continuation `and again at N-M`, out of range",
@@ -1610,16 +1610,16 @@ SELF_TEST_CASES: tuple[tuple[str, bool, str, str, tuple[str, object]], ...] = (
      ("offender", f"but that file has {_CPG_VERIFY_LINES} lines")),
     ("list continuation `lines A, B, C and D`, every member adjudicated",
      False, "line",
-     "`harness/lib/joern-scan.sc`" + " declares the six entries at lines 172, 176, 180, 184, 188 and 192.",
+     "`harness/lib/joern-scan.sc`" + " declares the six entries at lines 51, 55, 59, 63, 67 and 71.",
      ("live", 6)),
     ("list continuation with one out-of-range member",
      True, "line",
-     "`harness/lib/joern-scan.sc`" + " declares the six entries at lines 172, 176, 180, 184, 188 and 99999.",
+     "`harness/lib/joern-scan.sc`" + " declares the six entries at lines 51, 55, 59, 63, 67 and 99999.",
      ("offender", "line 99999")),
     ("open range `lines A to B`, both ends adjudicated",
-     False, "line", "`harness/lib/joern-scan.sc`" + " carries them at lines 171 to 199.", ("live", 2)),
+     False, "line", "`harness/lib/joern-scan.sc`" + " carries them at lines 48 to 78.", ("live", 2)),
     ("open range `lines A to B`, upper end out of range",
-     True, "line", "`harness/lib/joern-scan.sc`" + " carries them at lines 171 to 99999.",
+     True, "line", "`harness/lib/joern-scan.sc`" + " carries them at lines 48 to 99999.",
      ("offender", "line 99999")),
     ("ellipsis-abbreviated filename resolved by glob, in range",
      False, "line", "`probe-01-\u2026log` line 25 carries it.", ("live", 1)),
@@ -1635,13 +1635,13 @@ SELF_TEST_CASES: tuple[tuple[str, bool, str, str, tuple[str, object]], ...] = (
     ("an abbreviated digest does not shadow the filename it stands beside",
      True, "line",
      "`harness/artifacts/logs/cpg-verify.log` records the **current** pair -- "
-     "541,309,809 / `4616845a\u2026`, at its lines 99998-99999 and again at "
+     "547,980,224 / `325887cf\u2026`, at its lines 99998-99999 and again at "
      "99000-99001 -- and nothing else.",
      ("offender", "cpg-verify.log")),
     ("the same paragraph, in range, is adjudicated against the log and not the digest",
      False, "line",
      "`harness/artifacts/logs/cpg-verify.log` records the **current** pair -- "
-     "541,309,809 / `4616845a\u2026`, at its lines 33-34 and again at 47-50 -- and "
+     "547,980,224 / `325887cf\u2026`, at its lines 33-34 and again at 47-50 -- and "
      "nothing else.",
      ("live", 4)),
     ("ellipsis abbreviation matching more than one file names none of them",
@@ -1890,7 +1890,8 @@ def live_mutation_test() -> int:
     not prove the checks read the form as it appears in these documents, and the
     difference has already mattered twice: a windowed attribution read zero citations in
     `joern-probe.md`, and later an over-broad filename rule let the abbreviated digest
-    `4616845a...` shadow the `cpg-verify.log` the same paragraph is about -- in both
+    `4616845a...` -- the graph's digest when that happened, superseded on 2026-09-03 by
+    `325887cf...` -- shadow the `cpg-verify.log` the same paragraph is about; in both
     cases the fragments passed and the document was unchecked.
 
     So this phase edits the documents in memory, one locator at a time, and requires a

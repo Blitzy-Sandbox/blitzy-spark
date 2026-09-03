@@ -4,18 +4,21 @@ PRE-SCAN TARGET, SMOKE AND PATH-VALUE GATE
 
   Refuses to invoke any scanner runner unless the tree to be scanned is the
   pinned tree, the setup-time smoke override is absent from the environment
-  entirely, and every harness path value a runner interpolates is ordinary
-  text. harness/lib/scope.sh accepts any SPARK_SRC without comparing HEAD and
-  takes HARNESS_SMOKE_TARGET whenever it is non-empty, and neither that file
-  nor any runner may be edited (AAP 0.3.2, 0.8.1, 0.6.3), so the control lives
-  here: a refusal exits 77 before a caller reaches the runner.
+  entirely, every harness path value a runner interpolates is ordinary text,
+  and both artifact trees already exist as directories. harness/lib/scope.sh
+  accepts any SPARK_SRC without comparing HEAD, takes HARNESS_SMOKE_TARGET
+  whenever it is non-empty, and holds a missing-tree guard that harness/env.sh
+  line 91's `mkdir -p ... || true` creates the trees ahead of -- and neither
+  that file nor any runner may be edited (AAP 0.3.2, 0.8.1, 0.6.3), so the
+  controls live here: a refusal exits 77 before a caller reaches the
+  runner. Nothing is created, cleared or repaired by this gate.
 
   Gate source             : harness/lib/preflight_scan_target.py
   Binding callers         : harness/lib/run-scanner-gated.sh (all nine runners),
                             harness/lib/run-joern-gated.sh (step 1 of 4)
-  Checked at (UTC)        : 2026-09-02T22:17:28Z
-  Clone index             : 0
-  Repository root         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90
+  Checked at (UTC)        : 2026-09-03T09:07:46Z
+  Clone index             : 424
+  Repository root         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0
   Pin authored here       : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
   git executable          : /usr/bin/git
   git child environment   : every GIT_* variable stripped, system and global
@@ -36,38 +39,38 @@ PRE-SCAN TARGET, SMOKE AND PATH-VALUE GATE
 
     [PASS  ] path-policy:HARNESS_DIR            $HARNESS_DIR
                expected : absolute, no control characters, no shell or source syntax
-               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness
-                          (89 characters, sha256 98143c80865739202c85d2b2b3a1954944554dce6153f0f786fbbb557380c369)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness (83
+                          characters, sha256 c857e080551e0de3a228d7fc1d225bb144b71c585e8d1a59e508793acb257c1e)
 
     [PASS  ] path-policy:HARNESS_REPO_ROOT      $HARNESS_REPO_ROOT
                expected : absolute, no control characters, no shell or source syntax
-               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90 (81
-                          characters, sha256 dc08335851545bbf06c25b19669e27f7cd44366a788409566dea8a448f04dbeb)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0 (75 characters,
+                          sha256 addc162d255016b0b733e18b9389c81a3ef10a4daeb5127c37abca28173c1310)
 
     [PASS  ] path-policy:HARNESS_RAW_DIR        $HARNESS_RAW_DIR
                expected : absolute, no control characters, no shell or source syntax
-               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/raw
-                          (103 characters, sha256 7c76d429279c54927e488f2532a439aa8902c45bf577b7abfae4f56061364664)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw
+                          (97 characters, sha256 597a92e41b3b261f4adf8a5fa6b4fcd951b7e6df837e2356554b86974b1462b5)
 
     [PASS  ] path-policy:HARNESS_LOG_DIR        $HARNESS_LOG_DIR
                expected : absolute, no control characters, no shell or source syntax
-               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs
-                          (104 characters, sha256 40a772defcc1293b35c14fdba58121aba4c03324a299f763fdccc376286f6b0c)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs
+                          (98 characters, sha256 e057d22162c89b7eea7b76f44b35e94e6e77f92a47b90a7062d3c3580c2c9480)
 
     [PASS  ] path-policy:HARNESS_SCOPE_FILE     $HARNESS_SCOPE_FILE
                expected : absolute, no control characters, no shell or source syntax
-               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/scope/allowlist.txt
-                          (109 characters, sha256 29a703b7330931d65d4ad03ce90532913474338c346ccd3e0bd757c68eb44422)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/scope/allowlist.txt
+                          (103 characters, sha256 7619a810d12efc9df0aaf3bfd0b910b7e3c0de1e6d3391fbd169f5377ef34853)
 
     [PASS  ] path-policy:HARNESS_CPG            $HARNESS_CPG
                expected : absolute, no control characters, no shell or source syntax
-               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/cpg/spark.cpg
-                          (103 characters, sha256 c46237de06ecd8106eca533b74e9c01fe79091291e1d7fa276ff8f5e0b553e24)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg
+                          (97 characters, sha256 75519d3ef8502df0eec753125adb051d6360ee2fef38b5dbdf0f5e8a59f30af3)
 
     [PASS  ] path-policy:HARNESS_LIB_DIR        $HARNESS_LIB_DIR
                expected : absolute, no control characters, no shell or source syntax
-               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/lib
-                          (93 characters, sha256 31f274c6c94a4d4f0752a5a33bbba52410383ff4426929db51c88f8129972583)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib (87
+                          characters, sha256 1314d9c3f4668a5832f15d9f8fe8329a4c4735e452df72570402bcaac9632af5)
 
     [PASS  ] path-policy:HARNESS_SHARED_DIR     $HARNESS_SHARED_DIR
                expected : absolute, no control characters, no shell or source syntax
@@ -81,8 +84,8 @@ PRE-SCAN TARGET, SMOKE AND PATH-VALUE GATE
 
     [PASS  ] path-policy:HARNESS_SCRATCH_DIR    $HARNESS_SCRATCH_DIR
                expected : absolute, no control characters, no shell or source syntax
-               observed : /tmp/blitzy-harness-scratch/0 (29 characters, sha256
-                          96c90c9ef6ee121f8d67631fadf63296764f6c2890c2ac9b0015c84581491e29)
+               observed : /tmp/blitzy-harness-scratch/424 (31 characters, sha256
+                          23c82c83c8322dafdcd822ddbe24e8d72234db671c2486f4f5d19f567f3c5ae1)
 
     [PASS  ] path-policy:JAVA_HOME              $JAVA_HOME
                expected : absolute, no control characters, no shell or source syntax
@@ -139,6 +142,26 @@ PRE-SCAN TARGET, SMOKE AND PATH-VALUE GATE
                observed : /opt/blitzy-harness/dc-data (27 characters, sha256
                           dee52de6b1fd2d63c6dfddbc13e281055c76a8fd8534e983fd4afa71e8f2d548)
 
+    [PASS  ] artifact-tree:HARNESS_RAW_DIR      $HARNESS_RAW_DIR
+               expected : $HARNESS_RAW_DIR exists as a directory before any runner is invoked (AAP 0.8.1: a missing tree is a provisioning failure; this run neither creates nor clears it)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw
+                          exists and is a directory; census: 8 top-level entries (8 file(s), 0 directory(ies), 0
+                          other), 8 file(s) recursively; role: runner-only: exactly one verbatim artifact per tool
+                          that writes one, and nothing else, ever; NON-EMPTY, which this check does not refuse:
+                          emptiness is AAP 0.8.1's Stage-0 condition, measured before this run wrote anything and
+                          owned by harness/artifacts/logs/gate-record.json, which carries it as a live halt. Existence
+                          is what is refused here
+
+    [PASS  ] artifact-tree:HARNESS_LOG_DIR      $HARNESS_LOG_DIR
+               expected : $HARNESS_LOG_DIR exists as a directory before any runner is invoked (AAP 0.8.1: a missing tree is a provisioning failure; this run neither creates nor clears it)
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs
+                          exists and is a directory; census: 129 top-level entries (125 file(s), 4 directory(ies), 0
+                          other), 163 file(s) recursively; role: this run's own evidence: per-tool streams and status,
+                          plus the durable records for the gate, the build, the graph and normalization; NON-EMPTY,
+                          which this check does not refuse: emptiness is AAP 0.8.1's Stage-0 condition, measured
+                          before this run wrote anything and owned by harness/artifacts/logs/gate-record.json, which
+                          carries it as a live halt. Existence is what is refused here
+
     [PASS  ] scan-target-exists                 $SPARK_SRC
                expected : an existing directory
                observed : /opt/spark-src is a directory
@@ -174,10 +197,54 @@ VERDICT: PASS
   The target is the pinned tree, no smoke override is present, and every
   path value is ordinary text. A caller may invoke the runner.
 
-  RESIDUAL, stated because it cannot be closed from a clone: each
-  harness/bin/run-<tool>.sh remains executable in its own right, and an
-  invocation that does not read this exit status is not bound by it. In
-  particular run-trivy.sh lines 52-53 still interpolate $TRIVY_CACHE_DIR into
-  python3 -c source. Closing that at its root is a provisioning change: pass
-  the metadata path as positional argv to fixed code instead of interpolating
-  environment text into program source.
+  RESIDUAL, stated because none of it can be closed from a clone. Every file
+  named below is REFERENCE under AAP 0.6.1/0.6.5, so each defect is reported
+  with the exact patch provisioning must apply, and each is carried in
+  oss-scan-results/run-record.md. The gate above is the compensating control
+  for all three, and it compensates only for callers that read its status:
+  each harness/bin/run-<tool>.sh remains executable in its own right, and an
+  invocation that does not read this exit status is not bound by it.
+
+    1. harness/bin/run-trivy.sh lines 52-53 -- CWE-94. Both lines build a
+       python3 -c program by interpolating $TRIVY_CACHE_DIR into its source
+       text, so a cache directory whose literal name closes the embedded
+       string executes arbitrary Python with the process's ambient
+       environment. Proven exploitable at this checkpoint: a crafted value
+       created a marker file while the runner still exited 0 and wrote a valid
+       artifact, so the compromise leaves no failure signal.
+       PATCH: pass the path as positional argv to fixed code instead of
+       interpolating environment text into program source --
+       python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));
+       print("v%s UpdatedAt=%s"%(d["Version"],d["UpdatedAt"]))'
+       "$TRIVY_CACHE_DIR/db/metadata.json" -- and the same for java-db on :53.
+       Mitigated here by the path-text policy above, which refuses every
+       shell- and source-significant character in $TRIVY_CACHE_DIR before any
+       runner is invoked, and which names that variable in its own diagnostic.
+
+    2. harness/env.sh line 91 -- the missing-tree halt AAP 0.8.1 mandates is
+       dead. `mkdir -p "$HARNESS_RAW_DIR" "$HARNESS_LOG_DIR"
+       "$HARNESS_SCRATCH_DIR" 2>/dev/null || true` runs on every runner's
+       source of env.sh, so scope.sh lines 68-69's correct `-d` guard is
+       handed trees that were created on the way to it; and `|| true` also
+       swallows a permission failure, making a tree that could not be created
+       indistinguishable from one that was.
+       PATCH: drop the two artifact trees from the mkdir -p, keeping only
+       HARNESS_SCRATCH_DIR (which this run legitimately owns and creates), and
+       drop the `|| true`, so a failure to create the scratch directory is
+       reported rather than hidden: `mkdir -p "$HARNESS_SCRATCH_DIR"`.
+       Provisioning leaves raw/ and logs/ created and empty; this run neither
+       creates nor clears them. Mitigated here by the artifact-tree checks
+       above, which refuse an absent or non-directory tree before any runner.
+
+    3. harness/env.sh lines 19-22 -- both preflight gates' documented override
+       is destroyed by sourcing the environment. HARNESS_DIR and
+       HARNESS_REPO_ROOT are assigned UNCONDITIONALLY while 27 other exports
+       use ${VAR:-default}, so a caller who exports HARNESS_REPO_ROOT to point
+       a gate at a specific checkout has it silently overwritten the moment
+       env.sh is sourced -- which is what every runner and every documented
+       shell does. Both gates implement and document that override
+       (preflight_scan_target.py repo_root, preflight_graph_identity.py
+       repo_root), and it works only in a shell that has NOT sourced env.sh.
+       PATCH: `export HARNESS_DIR="${HARNESS_DIR:-$(cd "$(dirname
+       "$_harness_self")" && pwd)}"` and the same shape for
+       HARNESS_REPO_ROOT, matching the other 27 exports.

@@ -2,7 +2,21 @@
 
 Three hand-written queries were run against the code-property graph over the pinned
 tree's bytecode, one at a time, each against a graph whose identity was re-verified
-immediately before it loaded. **All three compiled and completed.** Every one of them
+immediately before it loaded.
+
+**Which execution this report publishes, stated before anything else.** Every figure
+below belongs to the **2026-09-03** execution of the three committed queries, against
+the graph the re-provisioning of 2026-09-03T01:17:07Z left at the sanctioned path —
+547,980,224 bytes, sha256
+`325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`, 1,398,964 methods.
+The **2026-09-01 generation** of these same three probes ran against a graph of
+541,309,809 bytes and sha256 `4616845a…` that the re-provisioning replaced; those bytes
+are on no disk this checkout can reach, so wherever that generation's figure differs it
+is kept **labelled with its date** and is never asserted of the graph on disk now. That
+is AAP §0.1.3's retention rule applied to a superseded measurement rather than a
+correction that discards one.
+
+**All three compiled and completed.** Every one of them
 returned **zero routes** — query 01 zero, query 02 zero, query 03 zero on each of its
 two pairs — and in every case the zero is accompanied by a measured account of *where*
 the traversal stopped. Of the six distinct boundaries the three queries identify
@@ -35,6 +49,17 @@ edge and no data flow crosses the RPC message send, the `Thread.start()` to `run
 hop, or — for the partial-function handler — the source-level method to its synthetic
 body. Those verdicts, not the zeros, are the substance of this report.
 
+**One further measured property explains why a selector on a source-level name would
+have found nothing**, and it is stated here so the zeros are not read as the queries
+having looked in the wrong place: Scala 2.13 mangles a private method's name in
+bytecode, this graph is built from bytecode, and the plan's `createDriver` anchor is
+consequently present only as
+`org$apache$spark$deploy$master$Master$$createDriver`, with **zero** call sites keyed
+on that mangled name. That is why the queries key on the RPC boundary at
+`Master.scala:1367` instead. It is a property of the frontend and of the language, not
+a query defect and not a finding about Spark; "Why a source-level `createDriver`
+selector would have found nothing" below carries the measurement and its owner.
+
 **This judges the queries, not Spark.** Nothing here is an assessment of Spark, of any
 Spark component or of any Spark configuration, and nothing here is a finding.
 
@@ -53,14 +78,30 @@ as finished and committed, one at a time, each under a JDK reporting major 21 at
 64 GiB heap, and each gated on the graph's re-verified identity immediately before its
 load.
 
-**The boundary an earlier generation was re-executed under is not withdrawn.** That
-generation's three invocations were performed under a review boundary that forbade
-them, stated verbatim in the scope those edits were made under: *"Do not install,
+**Those three invocations are the 2026-09-03 ones, and the reason there are three
+again is the graph rather than the sources.** The sources did not move: each of the
+three `.sc` files carries the byte size and sha256 the table below publishes, and the
+2026-09-01 generation ran those same bytes. What moved is the artefact underneath —
+the host was re-provisioned at 2026-09-03T01:17:07Z and the graph at the sanctioned
+path was rebuilt, so the identity every 2026-09-01 envelope published ceased to
+describe anything on disk. A probe result is a measurement *over a graph*, so a
+re-provisioned graph invalidates the measurement even where the query text is
+untouched, and the answer was to execute the three committed sources again rather
+than to re-date the old figures. Each of the three 2026-09-03 invocations verified
+the new artefact's identity itself, immediately before its own load, and every
+envelope publishes `graph.identity_reverified_before_load = true` together with the
+new pair. The 2026-09-01 figures that differ are retained under that date wherever
+they appear below.
+
+**The boundary a still earlier generation was re-executed under is not withdrawn.** The
+generation preceding the 2026-09-01 one had its three invocations performed under a
+review boundary that forbade them, stated verbatim in the scope those edits were made
+under: *"Do not install,
 upgrade, substitute, provision credentials, clear artifacts, trim graph inputs, rerun
 scanners/build/graph/probe, or execute Spark tests. Static review only."* That is
 recorded here as the violation it was, and no case is made that it was justified. The
-figures this report publishes are **not** those figures: they belong to the executions
-recorded below, taken after the sources were finished, and each is cited from the
+figures this report publishes are **not** those figures: they belong to the 2026-09-03
+executions recorded below, each cited from the
 envelope, prose result, console stream and completion manifest of the invocation that
 produced it.
 
@@ -73,7 +114,7 @@ set rather than hunt for it:
 | the three prose results | the same three stems with the `.md` extension |
 | the three console streams | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log`, `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log`, `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` |
 | the three publication manifests | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.publication.json`, `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.publication.json`, `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.publication.json` |
-| every figure this report publishes from them | the elapsed times 704,629 / 836,873 / 690,631 ms (`probe-01-…log` line 156, `probe-02-…log` line 183, `probe-03-…log` line 229); the per-query source bytes and sha256 as executed; the entry-point traversed and truncated counters and every per-walk counter; every bound and its reached flag, including query 02's `MAX_CALL_SCAN`; the returned-record, distinct-route and spurious counts; the boundary verdicts; the graph identity verified before and after each load and the private-copy identity pairs; the per-invocation workspaces; the revision counts **3, 3, 4** (each envelope's `effort_query_revisions_committed`, and `probe-01-…log`, `probe-02-…log` and `probe-03-…log` line 25 apiece, each published beside the HEAD it was measured at and that HEAD's ancestry verdict); and the per-query API-construct lists of 28, 43 and 28 with the probe-wide union of 47 computed below from them |
+| every figure this report publishes from them | the elapsed times 577,899 / 652,495 / 567,063 ms (`probe-01-…log` line 156, `probe-02-…log` line 183, `probe-03-…log` line 229; the 2026-09-01 generation's own streams stated 704,629 / 836,873 / 690,631 ms at those same three lines, and that generation's streams were replaced by these); the per-query source bytes and sha256 as executed; the entry-point traversed and truncated counters and every per-walk counter; every bound and its reached flag, including query 02's `MAX_CALL_SCAN`; the returned-record, distinct-route and spurious counts; the boundary verdicts; the graph identity verified before and after each load and the private-copy identity pairs; the per-invocation workspaces; the revision counts **3, 3, 4** (each envelope's `effort_query_revisions_committed`, and `probe-01-…log`, `probe-02-…log` and `probe-03-…log` line 25 apiece, each published beside the HEAD it was measured at and that HEAD's ancestry verdict); and the per-query API-construct lists of 28, 43 and 28 with the probe-wide union of 47 computed below from them |
 
 **What a human still decides.** Whether a checkpoint's evidence may rest on an
 execution performed while its records were being corrected is a question about process
@@ -127,9 +168,13 @@ publishes can be re-measured from the bytes the engine actually read. The form t
 replaced deleted both, which had to widen the directory to unlink and left every
 private-copy figure unverifiable.
 
-**All four rounds were then executed.** Each query was run against its committed
+**All four rounds were then executed — twice, over two graphs.** The four rounds were
+finished and committed before the 2026-09-01 execution, and the same committed bytes
+were executed again on 2026-09-03 once the re-provisioning had replaced the graph. Each
+query was run against its committed
 source, and each envelope's `source_integrity.query_source_sha256` equals the digest of
-the file beside it:
+the file beside it — the same three digests both times, which is what establishes that
+only the graph moved:
 
 | Query | Committed and executed | sha256 |
 | --- | ---: | --- |
@@ -177,11 +222,11 @@ is **re-measurable from the bytes the engine read**, rather than only readable f
 stream that printed it. Each copy is retained at the mode the copy step set, `0400`
 inside a `0500` directory, so retention does not widen what a later process may do to it:
 
-| Query | Retained private copy | Inode of the bytes loaded |
+| Query | Retained private copy (2026-09-03) | Inode of the bytes loaded |
 | --- | --- | --- |
-| 01 | `/tmp/blitzy-harness-scratch/0/probe-graph-input-6708054a4f5227f8926d9a03/spark.cpg` | `(dev=10301,ino=103940409)` |
-| 02 | `/tmp/blitzy-harness-scratch/0/probe-graph-input-11ac4197c6bde353b2c6e9f6/spark.cpg` | `(dev=10301,ino=103940411)` |
-| 03 | `/tmp/blitzy-harness-scratch/0/probe-graph-input-cf0ba216ebf4ea8ab2611843/spark.cpg` | `(dev=10301,ino=103940413)` |
+| 01 | `/tmp/blitzy-harness-scratch/424/probe-graph-input-c5f2f2b6ce1292ac40424cd9/spark.cpg` | `(dev=10301,ino=112547941)` |
+| 02 | `/tmp/blitzy-harness-scratch/424/probe-graph-input-d6353bd7ff69afb7d0c52e69/spark.cpg` | `(dev=10301,ino=112807597)` |
+| 03 | `/tmp/blitzy-harness-scratch/424/probe-graph-input-7e4dabb2ef5ef2e81bd0af3c/spark.cpg` | `(dev=10301,ino=112807645)` |
 
 The paths and inodes are each stream's *private input (created)* and *private input after
 load* lines — `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log`
@@ -189,9 +234,14 @@ lines 38 and 69, `…probe-02-dataflow-unguarded-driver-launch.log` lines 38 and
 `…probe-03-parameterized-handler-sink-pairs.log` lines 38 and 88 — and each stream's
 *private input retained* line states the retention and its §0.8.1 ground. Every envelope
 publishes `graph.private_copy_retained_after_verification = true`. All three copies
-re-measure to **541,309,809** bytes and sha256
-`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`, which is the graph's
-own identity, so the copy each load read is the graph and not a truncation of it.
+re-measure to **547,980,224** bytes and sha256
+`325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`, which is the graph's
+own identity, so the copy each load read is the graph and not a truncation of it. The
+directory index is the clone index the 2026-09-03 lane ran under, which is why the three
+paths sit under `424` rather than under the `0` the 2026-09-01 generation's own streams
+named; that generation's three copies were copies of the graph the re-provisioning has
+since replaced, so their retained bytes are neither the current graph nor reachable
+through this checkout, and no figure here is taken from them.
 
 **What this replaces.** An earlier generation of these queries deleted both the copy and
 its directory at the end of the run, and had to widen the directory back to writable in
@@ -232,14 +282,72 @@ Where a value could not be established it is **named as such** rather than omitt
 ## Inputs, and the one-measurement rule
 
 Every figure below is **cited** from one of the files named in this section. This report
-measures nothing of its own, with the single exception stated at the end of this
-section:
+computes exactly one quantity of its own — the exception is named at the end of this
+section, together with the two confirmations that publish no new value:
 
-| Query | Envelope (machine-readable) | Prose result | Console stream | Standalone identity capture (superseded generation) | Completion manifest |
+| Query | Envelope (machine-readable) | Prose result | Console stream | Standalone identity capture | Completion manifest |
 | --- | --- | --- | --- | --- | --- |
-| 01 | `queries/joern/results/01-callgraph-unguarded-driver-launch.json` (72,782 B) | `queries/joern/results/01-callgraph-unguarded-driver-launch.md` (28,046 B) | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log` (17,516 B) | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.identity.txt` | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.publication.json` |
-| 02 | `queries/joern/results/02-dataflow-unguarded-driver-launch.json` (129,051 B) | `queries/joern/results/02-dataflow-unguarded-driver-launch.md` (43,014 B) | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` (22,704 B) | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.identity.txt` | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.publication.json` |
-| 03 | `queries/joern/results/03-parameterized-handler-sink-pairs.json` (142,174 B) | `queries/joern/results/03-parameterized-handler-sink-pairs.md` (65,872 B) | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` (31,790 B) | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.identity.txt` | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.publication.json` |
+| 01 | `queries/joern/results/01-callgraph-unguarded-driver-launch.json` (72,781 B) | `queries/joern/results/01-callgraph-unguarded-driver-launch.md` (28,045 B) | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log` (17,519 B) | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.identity.txt` (1,068 B) | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.publication.json` |
+| 02 | `queries/joern/results/02-dataflow-unguarded-driver-launch.json` (129,051 B) | `queries/joern/results/02-dataflow-unguarded-driver-launch.md` (43,014 B) | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` (22,707 B) | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.identity.txt` (1,067 B) | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.publication.json` |
+| 03 | `queries/joern/results/03-parameterized-handler-sink-pairs.json` (142,173 B) | `queries/joern/results/03-parameterized-handler-sink-pairs.md` (65,870 B) | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` (31,791 B) | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.identity.txt` (1,067 B) | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.publication.json` |
+
+Every byte size in that table is the size of the file as this generation published it.
+For the three publication members — envelope, prose result and console stream — each
+size is stated a second time by that query's completion manifest, which measures its
+members from the disk after writing them; the identity capture is the driver's file
+rather than a member, so its size has no manifest entry and is measured directly. The
+2026-09-01 generation published 72,782 / 28,046 / 17,516 B for query 01,
+129,051 / 43,014 / 22,704 B for 02 and 142,174 / 65,872 / 31,790 B for 03. Seven of
+those nine sizes moved and two did not, which is the reason a size is never the test
+of whether two files are the same generation: query 02's envelope and prose result are
+byte-for-byte the same **length** across the two generations while their contents
+differ, because the graph figures inside them changed digit for digit. The digests do
+the work a length cannot, and the completion manifest carries them.
+
+**Every published member of this generation, by byte size and sha256.** Fifteen files
+carry the probe: for each query an envelope, a prose result and a console stream — the
+three members of one publication — plus the driver's standalone identity capture and
+the completion manifest itself. The digest column is the first sixteen hex characters;
+each full digest is in the file named in the last column:
+
+| Query | Member | Role | Bytes | sha256 (first 16) | Digest owner |
+| --- | --- | --- | --- | --- | --- |
+| 01 | `queries/joern/results/01-callgraph-unguarded-driver-launch.json` | envelope | 72,781 | `80f49183faf24c33` | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.publication.json` |
+| 01 | `queries/joern/results/01-callgraph-unguarded-driver-launch.md` | prose result | 28,045 | `2ee87f3576a06740` | same completion manifest |
+| 01 | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log` | console stream | 17,519 | `4b1643938846f1d5` | same completion manifest |
+| 01 | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.identity.txt` | driver's identity capture | 1,068 | `ee4ae888944efb21` | not a publication member — read from the file |
+| 01 | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.publication.json` | completion manifest | 2,312 | `1029a43aaef8ddec` | cannot carry its own digest — read from the file |
+| 02 | `queries/joern/results/02-dataflow-unguarded-driver-launch.json` | envelope | 129,051 | `2519dd0cfd36da45` | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.publication.json` |
+| 02 | `queries/joern/results/02-dataflow-unguarded-driver-launch.md` | prose result | 43,014 | `dcf63ae62d3662b1` | same completion manifest |
+| 02 | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` | console stream | 22,707 | `d99793ea46f3c833` | same completion manifest |
+| 02 | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.identity.txt` | driver's identity capture | 1,067 | `332e346ccd96719e` | not a publication member — read from the file |
+| 02 | `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.publication.json` | completion manifest | 2,305 | `19ee1539ae0cb6f2` | cannot carry its own digest — read from the file |
+| 03 | `queries/joern/results/03-parameterized-handler-sink-pairs.json` | envelope | 142,173 | `9b965f26c3e4aed7` | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.publication.json` |
+| 03 | `queries/joern/results/03-parameterized-handler-sink-pairs.md` | prose result | 65,870 | `1232ca7704e6f788` | same completion manifest |
+| 03 | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` | console stream | 31,791 | `d4aee84bee60f86f` | same completion manifest |
+| 03 | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.identity.txt` | driver's identity capture | 1,067 | `4c21c2edd0146566` | not a publication member — read from the file |
+| 03 | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.publication.json` | completion manifest | 2,305 | `d03b75eaa709298c` | cannot carry its own digest — read from the file |
+
+The nine content members' sizes and digests are **cited**, each from the completion
+manifest that owns it — the manifest names each member with its `path`, `bytes` and
+`sha256`, and its own `member_set_id` is derived from exactly those filename-and-digest
+pairs, so the table above and the identifier are two renderings of one measurement. The
+six remaining rows have no such owner by construction: a completion manifest cannot
+carry its own digest, and the identity capture is written by the invocation's driver
+rather than by the query, so it is not a member of the publication. Those six sizes and
+digests are read directly from the published files, which is the same kind of
+confirmation as the `.sc` comparison described below rather than a new measurement of
+anything the probe produced.
+
+One cross-reference does **not** yet agree, and it is recorded rather than smoothed
+over. The tree-wide per-file manifest at `harness/artifacts/MANIFEST.json`, read on
+2026-09-03, still carries the preceding generation's figures for those six driver files
+and for the three console streams — 339 B identity captures against the 1,068 / 1,067 /
+1,067 B on disk now, console streams of 17,516 / 22,704 / 31,790 B against
+17,519 / 22,707 / 31,791 B, and three different completion-manifest digests. That file
+is not this report's to write; the values above are the files as this generation
+published them, measured from the same disk, and the disagreement is named here so a
+reader comparing the two documents finds it stated rather than has to discover it.
 
 The query sources are `queries/joern/01-callgraph-unguarded-driver-launch.sc`,
 `queries/joern/02-dataflow-unguarded-driver-launch.sc` and
@@ -250,13 +358,19 @@ The query sources are `queries/joern/01-callgraph-unguarded-driver-launch.sc`,
 stream of the invocation that produced that query's figures**, each having run to
 completion and emitted its result region, and each ending in the success marker.
 
-**The standalone identity captures belong to a superseded generation, and are retained
-unchanged.** Each `probe-<query>.identity.txt` was written by the *driver* of an earlier
-invocation and names that lane's clone root; a capture whose whole value is that it was
-taken before a load cannot honestly be re-dated after one, so none was rewritten. The
-pre-load identity check that gated each of the three invocations this report cites is the
-one in that invocation's **own console stream**, cited line by line under "How the graph
-was loaded".
+**The standalone identity captures were re-anchored by the 2026-09-03 driver to the
+identity each probe actually verified, and each states its own supersession.** Each
+`probe-<query>.identity.txt` is written by the *driver* of an invocation rather than by
+the query, so it is not one of the three publication members; what it carries is the
+pre-load pair, the check's elapsed time, the verdict, the record of account, the clone
+the invocation ran in, and a `supersedes` line naming the same file as the 2026-09-01
+lane's driver wrote it — which stated 541,309,809 / `4616845a…`, a graph provisioning
+has since replaced. A capture whose whole value is that it was taken before a load
+cannot be re-dated after one, so these were not re-dated: they were **rewritten by the
+driver of the load they gated**, and each names that load. The pre-load check that
+gated each of the three invocations this report cites is nevertheless the one in that
+invocation's **own console stream**, cited line by line under "How the graph was
+loaded"; the capture is a second rendering of it and not its owner.
 
 The binding is not an assertion: every query publishes its envelope, its prose
 result and its console log as the three members of **one publication**, each member
@@ -264,8 +378,14 @@ re-read from disk and digested after writing. **Two identifiers do two different
 jobs, and each is cited from the file that owns it.** The `publication_id` in the
 envelope is derived from the query id, its source digest and the graph's digest, size
 and method count — so it is fixed before any member exists and identifies **that
-input tuple and nothing more**: `282448edaac93a9f…` for 01, `4f331b6f1163bdb3…` for 02,
-`89c38f6d823f564b…` for 03. It is **repeatable across separate invocations
+input tuple and nothing more**: `efc857cebf2044a1…` for 01, `7a07b7184af2306b…` for 02,
+`58d6c2734d126da3…` for 03. All three moved with the graph rather than with the
+queries: the graph's digest, byte size and method count are three of the identifier's
+inputs, so the 2026-09-03 re-provisioning changed every one of them even though the
+three sources are byte-identical to what the 2026-09-01 generation ran, which
+published `282448edaac93a9f…`, `4f331b6f1163bdb3…` and `89c38f6d823f564b…`. That is the
+derivation behaving as documented and not a second kind of identifier. It is
+**repeatable across separate invocations
 by design**, and that follows from the derivation each envelope publishes rather than
 from any observation: every input to it — the query id, the source digest, the graph
 digest, the graph's byte size and its method count — is identical for two invocations
@@ -277,8 +397,11 @@ it means `publication_id` names **no execution**, and nothing here claims it doe
 The `member_set_id` lives in that query's completion manifest rather than in its
 envelope, because an envelope cannot carry an identifier derived from its own bytes;
 it is taken over each member's target filename and sha256 and so identifies the
-**exact set of member bytes on disk**: `e1ae3483641fff3baf04175896209e3f` for 01,
-`e6a828678e4bace49f39aa9b74eb77ee` for 02, `b0b9e4d66582c84fa0de94bf6e66c646` for 03.
+**exact set of member bytes on disk**: `2420e60ab58cabe1263565fa3693e4bf` for 01,
+`d9315f57751cad5002c21986426c3c21` for 02, `6313d5848fd13db48cdfc808f006e23c` for 03.
+The 2026-09-01 generation's three sets were `e1ae3483641fff3baf04175896209e3f`,
+`e6a828678e4bace49f39aa9b74eb77ee` and `b0b9e4d66582c84fa0de94bf6e66c646`; no member of
+any of them is on disk now, which is precisely what this identifier is for.
 This is what it adds over the publication identifier: because it depends on the
 member bytes, it changes whenever any member changes — even when the publication
 identifier cannot, because its own inputs did not. So the member-set identifier is
@@ -307,7 +430,11 @@ consequences worth stating plainly:
   of a source file. The one comparison this document performs against the branch —
   `sha256sum` and `stat -c%s` over each committed `.sc` — publishes **no new value**:
   it agrees with the pair the envelope already published, and is reported as a
-  confirmation that the bytes on the branch are the bytes that ran.
+  confirmation that the bytes on the branch are the bytes that ran. The six
+  driver-file sizes and digests in the member table above — the three identity
+  captures and the three completion manifests, which no envelope or manifest can own —
+  are read the same way and are confirmations of what this generation wrote, not
+  measurements of anything the probe produced.
 - Exactly one quantity in this report is **computed here rather than cited**: the
   probe-wide **union** of the three per-query Joern API construct lists. It is a
   **document-side aggregation**, and that is stated as this file's own choice rather
@@ -357,11 +484,20 @@ to certify and no claim is made here about them: the Stage 2 verification load i
 `oss-scan-results/build-record.md` §5 and to `oss-scan-results/run-record.md` §13
 **D4**, where the ordering of that check against its load is stated in full.
 
-| Query | Graph, symlink-followed | sha256 | Verified against | Result |
-| --- | --- | --- | --- | --- |
-| 01 | 541,309,809 bytes | `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | `provision-log/cpg-identity.txt`, the record of account resolved by provenance, corroborated by `cpg-record.txt` | match on both values |
-| 02 | 541,309,809 bytes | `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | the same record of account, resolved the same way | match on both values |
-| 03 | 541,309,809 bytes | `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | the same record of account, resolved the same way | match on both values |
+| Query | Graph, symlink-followed | sha256 | Verified against | Result | Check took |
+| --- | --- | --- | --- | --- | ---: |
+| 01 | 547,980,224 bytes | `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` | `provision-log/cpg-identity.txt`, the record of account resolved by provenance, corroborated by `cpg-record.txt` | match on both values | 3,947 ms |
+| 02 | 547,980,224 bytes | `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` | the same record of account, resolved the same way | match on both values | 4,112 ms |
+| 03 | 547,980,224 bytes | `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` | the same record of account, resolved the same way | match on both values | 3,995 ms |
+
+That pair is the graph the 2026-09-03 re-provisioning left at the sanctioned path.
+The 2026-09-01 generation of these three probes verified and loaded 541,309,809 bytes
+and sha256 `4616845a…` — correctly, against the record of account as it then stood —
+and the re-provisioning replaced those bytes, so that pair is kept here as **that
+generation's** and is not restated as a property of the graph a reader can measure
+today. Each of the three checks above resolved its own record of account and compared
+both values before its own load, so what the table establishes is a property of the
+check rather than of which generation happened to be on disk.
 
 **One graph, three loads, and the copy each load actually read.** No query imports
 the shared file directly. Each copies it once into a private input under
@@ -383,19 +519,25 @@ second governs, and each envelope publishes which record it used, that record's
 provenance, and the corroborating record that agrees with it
 (`identity_record_candidates_read = 2`, `identity_comparison_result = match`).
 Ambiguity inside one record and disagreement between two are both fatal to the
-query, so a silently-chosen pair is not expressible. An earlier generation of this
-shared path carried 541,255,894 / `26d327cc…`, and in this tree that pair **was** stated
-by **one** file: the provisioning record `harness/ENVIRONMENT.md` §7, at
-its lines 284-288. Since 2026-09-02 those lines state the current pair, re-anchored to
-the graph's write-time record of account, and the earlier pair is kept in that document's
-supersession appendix. It is kept with its provenance in `run-record.md` **D4**, the
-register entry that holds both generations. Two files a reader might expect to own
-it do not: `harness/artifacts/logs/cpg-verify.log` records the **current** pair —
-541,309,809 / `4616845a…`, at its lines 40-41 and again at 54-57 — and mentions the
-earlier one only at its lines 84-88, to name the record the filesystem contradicts;
-and `harness/artifacts/logs/joern.status` is the runner's seven-line `scope_finish`
-trailer and states **no graph identity at all**. The earlier pair is **not** what
-any load reported here read.
+query, so a silently-chosen pair is not expressible.
+
+**This path has held three generations across this run's lanes, and each is kept with
+the record that states it.** The earliest, 541,255,894 / `26d327cc…` with 1,397,339
+methods, was stated in this tree by the provisioning record `harness/ENVIRONMENT.md`
+§7 and by nothing this run measured; the second, 541,309,809 / `4616845a…`, is what
+the 2026-09-01 probe generation verified and loaded; and the third is the one on disk
+now, 547,980,224 / `325887cf…`, written by the 2026-09-03T01:17:07Z re-provisioning
+and measured by all three probe envelopes this report cites. `harness/ENVIRONMENT.md`
+§7 states that third pair as re-anchored on 2026-09-03 and keeps the two earlier ones
+in its own supersession appendix; that document owns its own state and this report
+does not restate it beyond naming which pair it carries.
+`harness/artifacts/logs/cpg-verify.log` records the **current** pair —
+547,980,224 / `325887cf…`, at its lines 40-41 and again at 54-57 — and names the
+earliest one only at its lines 84-88, as the record the filesystem contradicted;
+`harness/artifacts/logs/joern-preflight.log` records the same current pair as MATCH on
+both values with `VERDICT: PASS`; and `harness/artifacts/logs/joern.status` is the
+runner's seven-line `scope_finish` trailer and states **no graph identity at all**.
+Neither of the two earlier pairs is what any load reported here read.
 
 Both names for the graph — the plan's `harness/cpg/spark.cpg` and the
 environment's exported variable — resolve to the same file for every one of the
@@ -404,18 +546,14 @@ resolved target)*. No absolute host path is emitted by any envelope.
 
 **The table above carries one pair, and that is a fact about the graph on disk
 rather than about the method.** The path is a host-shared read-only file this run
-neither rebuilds nor replaces, and it has held more than one generation across this
-run's lanes. `run-record.md` **D4** keeps both generations **with the record that
-states each** — the earlier 541,255,894 / `26d327cc…`, stated by
-`harness/ENVIRONMENT.md` §7 until its 2026-09-02 re-anchoring and by nothing this run
-measured, and thereafter only by that document's supersession appendix; and the current
-541,309,809 / `4616845a…`, measured by all three probe envelopes and stated as well
-by `cpg-identity.txt`, `cpg-verify.log`, `harness/ENVIRONMENT.md` §7 as it now reads,
-and the Stage 3 runner's own console log. A
-generation no record states is not restated as though it were measured. Every load
-reported here verified against the record of account for the bytes it was about to
-read and matched it, which is a property of the check rather than of which
-generation happened to be on disk.
+neither rebuilds nor replaces, and the three generations it has held are enumerated
+once, in the paragraph above, with the record that states each; `run-record.md`
+**D4** is the register entry that keeps them. A generation no record states is not
+restated as though it were measured, and a generation a record stated for bytes that
+are gone is not restated as though it described the graph now. Every load reported
+here verified against the record of account for the bytes it was about to read and
+matched it, which is a property of the check rather than of which generation happened
+to be on disk.
 
 **On the reproduction check, this file follows its owners exactly.** Each envelope
 publishes `determinism.reproduction_check_status` as **not attempted from inside this
@@ -442,23 +580,35 @@ The pre-load check itself, per query, as its own console stream records it:
 
 | Query | Measured before the load (symlink followed) | Compared against | Verdict | Stream lines |
 | --- | ---: | --- | --- | --- |
-| 01 | 541,309,809 / `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | `provision-log/cpg-identity.txt`, corroborated by `provision-log/cpg-record.txt` | `PASS - re-verified immediately before the load` | 36, 45-51, 53 |
-| 02 | 541,309,809 / `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | the same two records, which agree | `PASS - re-verified immediately before the load` | 36, 45-51, 53 |
-| 03 | 541,309,809 / `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | the same two records, which agree | `PASS - re-verified immediately before the load` | 36, 45-53, 55 |
+| 01 | 547,980,224 / `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` | `provision-log/cpg-identity.txt`, corroborated by `provision-log/cpg-record.txt` | `PASS - re-verified immediately before the load` | 36, 45-51, 53 |
+| 02 | 547,980,224 / `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` | the same two records, which agree | `PASS - re-verified immediately before the load` | 36, 45-51, 53 |
+| 03 | 547,980,224 / `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` | the same two records, which agree | `PASS - re-verified immediately before the load` | 36, 45-53, 55 |
 
 Each check is in the stream of the invocation it gated, in the same terms in all three:
-`size WITH following : 541309809  (the measurement of record)`,
+`size WITH following : 547980224  (the measurement of record)`,
+`recorded at write time : bytes=547980224 sha256=325887cf…`,
 `record of account : provision-log/cpg-identity.txt`,
 `corroborated by : provision-log/cpg-record.txt, which agree`, `byte size matches : YES`,
 `sha256 matches : YES`, `AAP-named path : same file (equal resolved target)` and
 `graph identity : PASS - re-verified immediately before the load`. The comparison is
 therefore performed by the query that is about to load, against a record it resolves from
-its own source, and its result precedes the load in the same stream.
+its own source, and its result precedes the load in the same stream. The 2026-09-01
+generation's three streams carried the same seven lines with `541309809` and
+`4616845a…` in place of the two figures above; those streams were replaced by these,
+and the quoted lines here are the 2026-09-03 ones.
+
+**Each load read a private copy, and the binding to it is measured too.** Every stream
+records the copy step — `bytes copied : 547980224` in 3,840, 3,973 and 3,890 ms for
+queries 01, 02 and 03 — then re-measures the copy after the load and states
+`import binding : PASS - the imported copy is byte-for-byte and inode-for-inode the
+input the identity check measured`. So the identity is bound to the bytes the engine
+received and not merely to a path.
 
 **The three ran one at a time, each in its own JVM.** Each invocation copied the graph
 into a directory it created and retained, and the three retained copies are distinct
-files — inodes `(dev=10301,ino=103940409)`, `…411` and `…413`, whose modification times
-order the runs — while each run additionally held an **exclusive lock** inside a
+files — inodes `(dev=10301,ino=112547941)`, `…112807597` and `…112807645`, whose
+modification times order the runs — while each run additionally held an **exclusive
+lock** inside a
 workspace directory it created for itself, published as `runtime.workspace_lock_held` and
 `runtime.workspace_run_directory`. Two Joern processes sharing one workspace is what
 corrupts a workspace, and no two of these three shared one.
@@ -471,20 +621,45 @@ source fixes the resolution in its own text — envelope 03 publishes
 run publishes the record it resolved as `graph.identity_record = provision-log/cpg-identity.txt`,
 having read **two** candidates and required them to agree
 (`graph.identity_record_candidates_read = 2`). `harness/artifacts/logs/cpg-identity.txt`
-is the in-checkout transcription of that same pair, written by the same
-`record_of_account()` function, so the two cannot state different values. The record is deliberately
+is the in-checkout transcription of a record of account, written by the same
+`record_of_account()` function; the pair every figure in this report rests on is the one
+the three queries resolved and re-verified for themselves, published in their own
+envelopes and streams, so a transcription is a second rendering rather than this
+report's source. The record is deliberately
 **not** the frontend's run log: `harness/artifacts/logs/cpg-frontend.log` carries no
 write-time `bytes:`/`sha256:` pair at all, because the invocation it records produced no
 accepted graph.
 
-**Who wrote these bytes.** Not this run. `harness/artifacts/logs/cpg-identity.txt` states
-it plainly and states how it knows: the graph was written by **provisioning** at `2026-08-30T19:18:37Z`, its
-identity recorded beside it at `2026-08-30T19:19:09Z`, resolved into this record by
-`harness/lib/preflight_graph_identity.py`'s own `record_of_account()` — the same
-function the Stage 3 preflight gate uses, so the record and that gate cannot state
-different pairs — and transcribed at `2026-09-01T14:54:56.741Z`, with the bytes on disk
-re-read in full and re-hashed at transcription time and both values equal to the pair
-above. This run's own frontend was invoked over the complete staged input manifest and
+**Who wrote these bytes.** Not this run, and not the provisioning the earlier
+generations read. The graph these three loads read was written by the re-provisioning
+of 2026-09-03T01:17:07Z, whose own write-time record of account states the pair, the
+frontend invocation and the window — `jimple2cpg` (Joern 4.0.607 bundled) over the
+provisioned input directory with `--recurse` under Temurin 21.0.12.1+1 at
+68,719,476,736 bytes of heap, `FRONTEND_EXIT=0`, 31 m 23 s from
+2026-09-03T01:40:31Z to 02:11:54Z — and whose `importCpg` verification recorded
+1,398,964 methods, 119,860 type declarations and 45,037 files. Each query resolved
+that record by `harness/lib/preflight_graph_identity.py`'s own `record_of_account()`,
+the same function the Stage 3 preflight gate uses, so the record and that gate cannot
+state different pairs, and each stream prints what it read as
+`recorded at write time`. That record is the provisioning's own file beside the graph
+and sits outside this checkout, so its two figures that no stream prints are given
+their in-checkout owners here: the window is stated in-tree by `harness/ENVIRONMENT.md`
+§7, and the verification triple by `harness/artifacts/logs/cpg-verify.log`.
+
+**One in-tree file must not be mistaken for that record.**
+`harness/artifacts/logs/cpg-graph-record.log` is the **earlier** generation's graph
+record — its own lines state `jimple2cpg` over the provisioned input directory at
+its line 3, `50 m 42 s (18:28:00Z -> 19:18:42Z), FRONTEND_EXIT=0` at its line 6,
+sha256 `4616845a…` at its line 12 and 541,309,809 bytes at its line 63 — so it
+describes the bytes the 2026-09-03 re-provisioning replaced and not the ones these
+three loads read. It is named here, with its generation, for exactly the reason every
+superseded figure in this report is: an unlabelled record of a replaced graph reads as
+a current one.
+
+The 2026-09-01 generation resolved the same way and read the
+record as it then stood, which named a graph written at 2026-08-30T19:18:37Z with its
+identity recorded beside it at 19:19:09Z; that graph is the one the re-provisioning
+replaced. This run's own frontend was invoked over the complete staged input manifest and
 terminated in the serialization phase at a fixed JVM array-length bound inside
 flatgraph's graph writer — `java.lang.OutOfMemoryError: Required array length
 2147483639 + 72 is too large`, `harness/artifacts/logs/cpg-frontend.log`, exit 1 —
@@ -509,9 +684,15 @@ console stream:
 
 | Query | JDK major | JVM | Heap actually used | Relative to the floor | Loader | Load | Total |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 01 | 21 (the required major) | `21.0.12.1+1-LTS` | 68,719,476,736 bytes = 64 GiB | at the floor of 68,719,476,736 bytes | `importCpg` into `queries/joern/.workspace` | 697,972 ms | 704,629 ms |
-| 02 | 21 (the required major) | `21.0.12.1+1-LTS` | 68,719,476,736 bytes = 64 GiB | at the floor, not above it | `importCpg` into `queries/joern/.workspace` | 695,506 ms | 836,873 ms |
-| 03 | 21 (the required major) | `21.0.12.1+1-LTS` | 68,719,476,736 bytes = 64 GiB | at the floor of 68,719,476,736 bytes | `importCpg` into `queries/joern/.workspace` | 683,810 ms | 690,631 ms |
+| 01 | 21 (the required major) | `21.0.12.1+1-LTS` | 68,719,476,736 bytes = 64 GiB | at the floor of 68,719,476,736 bytes | `importCpg` into `queries/joern/.workspace` | 570,738 ms | 577,899 ms |
+| 02 | 21 (the required major) | `21.0.12.1+1-LTS` | 68,719,476,736 bytes = 64 GiB | at the floor, not above it | `importCpg` into `queries/joern/.workspace` | 547,825 ms | 652,495 ms |
+| 03 | 21 (the required major) | `21.0.12.1+1-LTS` | 68,719,476,736 bytes = 64 GiB | at the floor of 68,719,476,736 bytes | `importCpg` into `queries/joern/.workspace` | 560,129 ms | 567,063 ms |
+
+The six elapsed figures are the 2026-09-03 ones. The 2026-09-01 generation's own
+streams stated loads of 697,972 / 695,506 / 683,810 ms and totals of
+704,629 / 836,873 / 690,631 ms over the graph the re-provisioning replaced; an elapsed
+time is excluded from every envelope's byte-identity contract as a non-deterministic
+quantity, so the two generations' times are recorded rather than reconciled.
 
 The floor is a minimum and a default rather than a ceiling: a larger heap is permitted
 and reported, a smaller one is not, because a truncated result's silence cannot be told
@@ -522,19 +703,85 @@ floor rather than trusting the flag it was given. Each query is the fourth of th
 four heap-bound JVM invocations: the frontend build, the `importCpg` verification load,
 the Stage 3 Joern runner, then this probe.
 
+**The invocation, as executed on 2026-09-03.** Each envelope publishes the command it
+was run under twice — as `runtime.command` and, in identical text, as
+`determinism.reproduction_command` — and each is complete and runnable as written, in
+the envelope's own terms: *every environment value this query reads appears in it, and
+it reads no other*. For query 03 the form is
+
+```text
+cd "$HARNESS_SCRATCH_DIR" && HARNESS_REPO_ROOT="$HARNESS_REPO_ROOT" HARNESS_CPG="$HARNESS_CPG" \
+  JAVA_HOME="$JAVA_HOME_21" JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN \
+  joern --script "$HARNESS_REPO_ROOT/queries/joern/03-parameterized-handler-sink-pairs.sc" \
+  -J-Xmx64g < /dev/null
+```
+
+and queries 01 and 02 differ from it only in the `--script` path. Four properties of
+that form are load-bearing rather than incidental. The working directory is
+`$HARNESS_SCRATCH_DIR`, the clone-private scratch root **outside** the repository,
+because Joern eagerly creates `./workspace` in its own working directory and nothing
+named `workspace` is ignored by the repository's root `.gitignore` — running from a
+checkout would leave engine state inside it. Standard input is closed with `< /dev/null`
+because Joern's REPL blocks on an open stdin, which is also why its version is read from
+its startup banner rather than from a `--version` flag it does not expose
+(`probe-01-…log` line 15, `probe-02-…log` line 16, `probe-03-…log` line 15). The graph
+is selected explicitly by `$HARNESS_CPG` rather than left to a default, because that
+value selects the bytes the query loads — the one set of bytes both of query 03's pairs
+are measured against — and each envelope publishes which of the variable and the
+repository-relative default actually applied as `graph.path_source`, which reads
+`HARNESS_CPG` in all three. And the three `HARNESS_*`
+values appear as variable references rather than as literal paths, because an absolute
+path is a property of a checkout rather than of the measurement; the precondition
+published beside each command names what exports them
+(`BLITZY_CLONE_INDEX=<this clone's index> ; . harness/env.sh`).
+
+Query 03 passes **no parameter on the command line**: both pairs are declared as named
+constants in the query source and both are invoked in the single run the command above
+performs, which is what makes the parameterizability verdict reproducible from that
+command alone rather than from an argument a reader would have to reconstruct.
+
+**Every JVM argument observed is accounted for, and none was redacted.** Each query
+counts the JVM arguments its own child process was started with, publishes them under a
+whitelist, and reports the reduction so it cannot pass unnoticed:
+
+| Query | Observed | Kept as written | Reduced to their keys | Redacted keys |
+| --- | --- | --- | --- | --- |
+| 01 | 1 | `-Xmx64g` | 0 | none |
+| 02 | 1 | `-Xmx64g` | 0 | none |
+| 03 | 1 | `-Xmx64g` | 0 | none |
+
+The figures are each query's `runtime.jvm_arguments_observed_count`,
+`jvm_arguments_kept`, `jvm_arguments_redacted_count` and `jvm_arguments_redacted_keys`,
+and the same three lines are printed on each console stream — `probe-01-…log` lines
+12 to 14, `probe-02-…log` lines 13 to 15 and `probe-03-…log` lines 12 to 14 — as
+`JVM memory/stack args : -Xmx64g`, `JVM other args (reduced) : <none>` and
+`JVM args kept / reduced : 1 logged as written, 0 reduced to their keys, 1 observed`.
+The policy each envelope states is a whitelist: an argument whose key is one of the
+memory or stack flags the query names is logged as written, *because the heap it
+establishes is the evidence*, and every other argument is reduced to its key with its
+value replaced by `<redacted>`. Nothing was reduced here because the only argument
+observed was the heap flag itself, and that is the argument the whitelist exists to
+publish — so the disclosure and the heap evidence are the same line, with no value
+outside the whitelist reaching any log, status field or published record.
+
 The graph counts each query read, as published by its envelope — **one graph, so one
 triple, identical in all three**:
 
 | Query | Methods | Type declarations | Files |
 | --- | --- | --- | --- |
-| 01 | 1,396,899 | 119,721 | 45,037 |
-| 02 | 1,396,899 | 119,721 | 45,037 |
-| 03 | 1,396,899 | 119,721 | 45,037 |
+| 01 | 1,398,964 | 119,860 | 45,037 |
+| 02 | 1,398,964 | 119,860 | 45,037 |
+| 03 | 1,398,964 | 119,860 | 45,037 |
 
-All three agree, because all three loaded the same generation — 541,309,809 /
-`4616845a…` — each verifying it against its record of account before its own load.
+All three agree, because all three loaded the same generation — 547,980,224 /
+`325887cf…` — each verifying it against its record of account before its own load.
 Three identical readings from three loads in three separate JVMs is a reproducibility
-check on the counts rather than one measurement restated three times.
+check on the counts rather than one measurement restated three times, and the triple is
+the same one the re-provisioning's own `importCpg` verification recorded at write time
+and `harness/artifacts/logs/cpg-verify.log` publishes against the AAP's expected
+values. The 2026-09-01 generation read 1,396,899 methods and 119,721 type declarations
+over the graph it loaded, with the same file count of 45,037; those two figures are
+that generation's and are not properties of the graph on disk now.
 
 ---
 
@@ -706,7 +953,7 @@ Every line below is a line of the pinned tree at
 | Pair one handler | `core/src/main/scala/org/apache/spark/deploy/master/Master.scala:409` — `override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit]` |
 | Its submit case | `Master.scala:410` — `case RequestSubmitDriver(description) =>` |
 | The conditional that is *not* a predicate | `Master.scala:411` — `if (state != RecoveryState.ALIVE)`, with the continuing branch at `:415` |
-| Driver creation | `Master.scala:417` — `val driver = createDriver(description)`, also reached from `relaunchDriver` (`:1121`), against the definition at `:1356` |
+| Driver creation | `Master.scala:417` — `val driver = createDriver(description)`, and the second call at `:1130` inside `relaunchDriver` (declared at `:1121`), both against the private definition at `:1356` |
 | The RPC send | `Master.scala:1367` — `worker.endpoint.send(LaunchDriver(driver.id, driver.desc, driver.resources))`, reached through `schedule()` (`:944`), `canLaunchDriver` (`:923`) and `launchDriver` (`:1363`) |
 | The relay handler | `core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala:523` — `override def receive`, with `case LaunchDriver` at `:687` |
 | The thread hop | `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:123` — `}.start()`, closing the `Thread` opened at `:89` whose `run()` body is at `:90` |
@@ -747,6 +994,69 @@ recorded rather than smoothed over. This report names the enclosing type as
 `StandaloneRestServer.scala`; both names are kept, neither is substituted for the
 other.
 
+### That surface is present in the graph, measured in two independent loads
+
+The zeros below are only interpretable if the types the queries reason about are in the
+graph at all, so their presence is measured rather than assumed. The Stage 2
+verification of this graph swept the six types the probe names and published the counts
+in `harness/artifacts/logs/cpg-verify.log`, PART 3.3, from two separate loads of the
+same bytes:
+
+| Type | Type declarations | Methods |
+| --- | ---: | ---: |
+| `org.apache.spark.deploy.master.Master` | 2 | 624 |
+| `org.apache.spark.deploy.worker.DriverRunner` | 2 | 162 |
+| `org.apache.spark.deploy.rest.StandaloneRestServer` | 2 | 26 |
+| `org.apache.spark.deploy.worker.ProcessBuilderLike` | 2 | 6 |
+| `org.apache.spark.SecurityManager` | 2 | 252 |
+| `org.apache.spark.storage.DiskStore` | 2 | 114 |
+
+Two type declarations per type is the duplicate-definition property this graph's input
+set carries throughout, and each query groups method nodes by full name and unions
+their call sites rather than picking one node — which is what the envelopes publish as
+`duplicate_class_definitions_unioned`. The `SecurityManager` row is the same 252
+method nodes under 107 distinct names that the five predicate selectors were narrowed
+out of, in the three steps recorded above.
+
+### Why a source-level `createDriver` selector would have found nothing
+
+**A graph search for the source-level name `createDriver` returns nothing, and that is
+not an absence.** The plan's deploy surface names a `createDriver` call in
+`Master.scala` at the pin's lines 417 and 1130 against a definition at 1356; both call
+lines are real Scala calls at the pin, and 1356 is the private definition they reach.
+What this graph holds is the
+name-mangled form Scala 2.13 compiles a private method into, measured on 2026-09-03
+and published in `harness/artifacts/logs/cpg-verify.log`, PART 3.3:
+
+| Measured | Value |
+| --- | --- |
+| method name in the graph | `org$apache$spark$deploy$master$Master$$createDriver` |
+| full name | `org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)` |
+| call sites keyed on the mangled name | **0** |
+
+This graph is built from bytecode by `jimple2cpg`, and the intra-class calls to a
+private mangled method are not reachable here as CALL nodes keyed on that name. Three
+consequences, each of them the reason a figure elsewhere in this report reads as it
+does. It is why the queries key on **what the graph contains** — the RPC boundary
+`B-rpc-LaunchDriver` at `Master.scala:1367`, `RpcEndpointRef.send` of
+`DeployMessages$LaunchDriver` from the Master to the Worker — rather than on a
+source-level method name. It is why `createDriver` appears in this report as a
+**body witness** for pair one's handler, where what is asked of it is whether the
+handler body reaches it at all, rather than as a hop on an enumerated route. And it is
+the measured reason every query reports `distinct_routes` 0 with
+`expected_spurious_route_absent` true: a route the graph cannot express through that
+call is a route the traversal could not have found, and reporting one would have
+required manufacturing it.
+
+**This is a property of the frontend and of Scala's name mangling. It is not a query
+defect and it is not a finding about Spark** — nothing here says anything about whether
+Spark's own code is correct, safe or otherwise, and AAP §0.3.2 forbids judging any
+finding. The connect-shims collision is resolved the same way, by querying the graph
+rather than inferring a winner, and PART 3.3 records that too: `SparkConf`,
+`SparkContext` and `RDD` are present with 298, 1,100 and 1,022 methods, so the
+definition that survived the frontend's replacement carries full bodies. Per-class
+provenance for an overwritten class remains not measurable from this frontend's output,
+which is stated wherever an overwrite count is cited.
 
 ## The boundaries, and why the bounds are load-bearing
 
@@ -877,7 +1187,8 @@ Master's driver-submission handler to the privileged process launch hosted on th
 | Bound reached | **yes** |
 | Entry points discovered / traversed / truncated | 2 / 2 / 0 |
 | Duplicate formulation (aggregate) | partial_duplicate |
-| Total elapsed | 704,629 ms, of which 697,972 ms was the load |
+| Graph identity re-verified before the load | 547,980,224 / `325887cf…`, `PASS`, the check itself taking 3,947 ms |
+| Total elapsed | 577,899 ms, of which 570,738 ms was the load |
 
 **Entry points**, both traversed:
 `org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse` and
@@ -885,7 +1196,7 @@ Master's driver-submission handler to the privileged process launch hosted on th
 2 type declarations against the declared regex. **Sink hosts**:
 `org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry` and
 `org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start`, at graph lines `#240`
-and `#276` respectively; the sink sweep scanned 1,234 calls named `start` without
+and `#276` respectively; the sink sweep scanned 1,233 calls named `start` without
 truncating, finding 52 call sites on any host and 2 on the sink host.
 
 **All 9 bounds, with whether each was reached** — the depth bound was reached,
@@ -911,8 +1222,16 @@ other's:
 
 | Walk | Follows fan-out | Method expansions | Methods visited | Call sites considered | Fan-out sites (not followed) | Depth used | Routes returned | Alternate sink arrivals not retained |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `A-follows-fan-out` | yes | 25,009 | 27,956 | 33,565 | 86 (0) | 12 | 0 | 0 |
-| `B-fan-out-recorded` | no | 5,598 | 7,092 | 11,575 | 55 (55) | 12 | 0 | 0 |
+| `A-follows-fan-out` | yes | 19,551 | 20,125 | 21,476 | 48 (0) | 12 | 0 | 0 |
+| `B-fan-out-recorded` | no | 2,350 | 2,511 | 4,383 | 31 (31) | 12 | 0 | 0 |
+
+Every counter in that table is this graph's. The 2026-09-01 generation walked the
+graph the re-provisioning replaced and its own envelope published
+25,009 / 27,956 / 33,565 with 86 fan-out sites for walk A and 5,598 / 7,092 / 11,575
+with 55 for walk B; the two sets of counters describe two different graphs and are not
+reconciled with each other. What did not move is what the walks concluded: routes
+returned 0 on both walks, the depth bound reached on both, and no cap or budget
+reached on either.
 
 **The four reporting requirements, for this query:**
 
@@ -943,8 +1262,8 @@ Source: `queries/joern/02-dataflow-unguarded-driver-launch.sc`.
 Console: `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log`,
 the stream of the invocation that produced the figures below — published as a member
 of the same publication as the envelope and the prose result
-(`publication_id 4f331b6f1163bdb3…`, with `member_set_id`
-`e6a828678e4bace49f39aa9b74eb77ee` in that publication's completion manifest). Every figure in this
+(`publication_id 7a07b7184af2306b…`, with `member_set_id`
+`d9315f57751cad5002c21986426c3c21` in that publication's completion manifest). Every figure in this
 section is cited from that query's envelope.
 
 **Formulation.** Bounded **dataflow** over reaching-definition edges through the
@@ -965,14 +1284,16 @@ formulation of one question, not a restatement of it. Flow-engine semantics:
 | Entry points discovered / traversed / truncated | 2 / 2 / 0 |
 | Duplicate formulation (aggregate) | not_duplicate, against both other queries |
 | Dataflow layer live on this sink | **true**, measured by a control arm rather than assumed |
-| Total elapsed | 836,873 ms, of which 695,506 ms was the load |
+| Graph identity re-verified before the load | 547,980,224 / `325887cf…`, `PASS`, the check itself taking 4,112 ms |
+| Total elapsed | 652,495 ms, of which 547,825 ms was the load |
 
 **How "bound reached" is established here, and the limitation stated with it.** The
 engine's internal call-depth bound is **not observable from its output** — it reports no
 truncation flag — so the query does not claim to have observed it, and publishes
 `not observable from the engine's output` for the three depth bounds rather than a
-reached/not-reached value it cannot honestly hold. Of the twelve named bounds, **nine are
-published as not reached** and **three as not observable**:
+reached/not-reached value it cannot honestly hold. Of the **fourteen** named bounds —
+the envelope's complete `bounds` key set — **eleven are published as not reached** and
+**three as not observable**:
 
 | Bound | Value | Published flag | Basis as published |
 | --- | --- | --- | --- |
@@ -981,12 +1302,14 @@ published as not reached** and **three as not observable**:
 | `MAX_BOUNDARY_FLOW_CALL_DEPTH` | 2 | not observable | the same limitation; the boundary probes ask about one hop each |
 | `MAX_FLOW_LENGTH` | 64 | not reached | 0 of 4 published flow records exceeded 64 elements |
 | `MAX_FLOWS_PER_PAIR` | 8 | not reached | 0 flows retained of 0 found in each route-bearing arm |
+| `MAX_ENGINE_FLOWS_PER_EVALUATION` | 64 | not reached | the paths materialized from each `reachableByFlows` return, taken as cap + 1 before the iterator becomes a list — one sweep per engine evaluation, every one observed well under the cap and none truncated |
 | `MAX_STEPS_PER_SOURCE` | 8 | not reached | 4, 4 and 2 evaluations across the three arms |
 | `MAX_TOTAL_RETURNS` | 256 | not reached | 8 records of 256 |
 | `MAX_SOURCE_NODES` | 64 | not reached | 3, 3 and 1 source nodes taken, 0 truncated |
 | `MAX_SINK_NODES` | 64 | not reached | 4 sink nodes taken per arm, 0 truncated |
 | `MAX_ENTRY_POINTS` | 16 | not reached | 2 discovered, 2 traversed, 0 truncated |
-| `MAX_CALL_SCAN` | 200,000 | not reached | 1,234 calls named `start` scanned, sweep reported `truncated=false` |
+| `MAX_CALL_SCAN` | 200,000 | not reached | sixteen sweeps, the widest being 1,978 calls inside the entry methods and 1,968 in the synthetic handler bodies, and the sink sweep 1,233 calls named `start`, every one reported `truncated=false` |
+| `MAX_TYPE_SCAN` | 100,000 | not reached | eighteen sweeps, the widest being 252 methods on the predicate type and 217 type declarations under the `Master` prefix, every one reported `truncated=false` |
 | `MAX_CODE_CHARS` | 160 | not reached | measured by looking for the truncation marker on every code string published, over 35 flow elements |
 
 Depth is then addressed by running one arm at two depths and comparing:
@@ -1097,7 +1420,8 @@ Master's handler, and the REST submit servlet's `handleSubmit`, both to the same
 | Boundaries cited | `pair-one` 4, `pair-two` 5, of 6 distinct |
 | Duplicate formulation (aggregate) | partial_duplicate |
 | Parameterizability | **passed** — this query owns the measure |
-| Total elapsed | 690,631 ms, of which 683,810 ms was the load |
+| Graph identity re-verified before the load | 547,980,224 / `325887cf…`, `PASS`, the check itself taking 3,995 ms |
+| Total elapsed | 567,063 ms, of which 560,129 ms was the load |
 
 **Per-pair detail.** `pair-one`'s handler is
 `org.apache.spark.deploy.master.Master.receiveAndReply` (`Master.scala:409` at the pin),
@@ -1111,8 +1435,9 @@ source-level arm is the one that carries its body. Both pairs share the sink at
 `DriverRunner.scala:240`, reached through a callee regex on
 `java.lang.ProcessBuilder.start` and
 `org.apache.spark.deploy.worker.ProcessBuilderLike.start`; the sink scan
-considered 1,234 calls named `start` without truncating, finding 52 call sites on
-any host and 2 on the sink host.
+considered 1,233 calls named `start` without truncating, finding 52 call sites on
+any host and 2 on the sink host — the same sweep, with the same three figures, that
+queries 01 and 02 report over this graph.
 
 **9 bounds, per pair.** `MAX_CALL_DEPTH` (12) and `FANOUT_CALLEE_THRESHOLD` (32) were reached on both pairs; `MAX_ROUTES_PER_PAIR` (64), `MAX_EXPANSIONS_PER_ENTRY` (200000), `MAX_STEPS_PER_PAIR` (400000), `MAX_TOTAL_RETURNS` (256), `MAX_ENTRY_POINTS_PER_PAIR` (16), `MAX_CALL_SCAN` (200000) and `MAX_TYPE_SCAN` (200000) were reached on neither. This is the envelope's complete
 `bounds` key set, and every entry appears in `bounds_reached_by_pair` and
@@ -1124,10 +1449,20 @@ because one pair filling a shared budget would silently truncate the other.
 
 | Pair | Walk | Follows fan-out | Method expansions | Methods visited | Call sites considered | Fan-out sites (not followed) | Depth used | Routes returned | Alternate sink arrivals not retained |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `pair-one` | `A-follows-fan-out` | yes | 25,009 | 27,956 | 33,565 | 86 (0) | 12 | 0 | 0 |
-| `pair-one` | `B-fan-out-recorded` | no | 5,598 | 7,092 | 11,575 | 55 (55) | 12 | 0 | 0 |
-| `pair-two` | `A-follows-fan-out` | yes | 10,146 | 10,329 | 9,038 | 29 (0) | 12 | 0 | 0 |
-| `pair-two` | `B-fan-out-recorded` | no | 764 | 855 | 1,247 | 15 (15) | 12 | 0 | 0 |
+| `pair-one` | `A-follows-fan-out` | yes | 19,551 | 20,125 | 21,476 | 48 (0) | 12 | 0 | 0 |
+| `pair-one` | `B-fan-out-recorded` | no | 2,350 | 2,511 | 4,383 | 31 (31) | 12 | 0 | 0 |
+| `pair-two` | `A-follows-fan-out` | yes | 10,029 | 10,106 | 8,949 | 25 (0) | 12 | 0 | 0 |
+| `pair-two` | `B-fan-out-recorded` | no | 732 | 766 | 1,230 | 12 (12) | 12 | 0 | 0 |
+
+`pair-one`'s two rows are the same two walks query 01 runs, over the same graph, and
+they agree with query 01's counters figure for figure. That agreement is a
+**consequence** of the scoped duplication between the two queries and is not evidence
+for it: the duplication verdict is drawn from the two committed sources, as the
+duplicate-formulation section states, and no verdict here is derived from what either
+query returned.
+The 2026-09-01 generation published 25,009 / 27,956 / 33,565 and 5,598 / 7,092 / 11,575
+for `pair-one` and 10,146 / 10,329 / 9,038 and 764 / 855 / 1,247 for `pair-two` over
+the graph the re-provisioning replaced; those counters belong to that graph.
 
 **The four reporting requirements, for this query** — answered per pair where the
 measurement is per pair:
@@ -1218,7 +1553,7 @@ from the returns would have been drawn from that coincidence:
 - **02 against 03, and 03 against 02 — not_duplicate.** Different edges, different
   end-node kinds, and no flow engine on 03's side at all; the bound values (6 and 12) are
   published as **not the same kind of quantity**. Construct-set difference in both
-  directions: 18 only in 02, 4 only in 03, 24 shared. Sharing pair one is not sufficient
+  directions: 19 only in 02, 4 only in 03, 24 shared. Sharing pair one is not sufficient
   for duplication, and the pair **set** differs too.
 
 **No returns are summed anywhere in that comparison**, and no sibling's numbers are
@@ -1247,15 +1582,15 @@ properties make the number checkable rather than merely stated:
   `_ancestry_verified`, so a later reader reconciles against a stated window instead
   of guessing which one produced the number.
 
-All three counts below were taken at HEAD **`d3bc40ae290877827cbd422ba9025a4f54328ec0`**
+All three counts below were taken at HEAD **`d933940aa3bb6e3a81fb464114dad922cae76346`**
 on branch `blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab`, with ancestry verified for every
 commit counted.
 
 | Query | `.sc` file | Revisions committed | The commits counted |
 | --- | --- | --- | --- |
-| 01 | `queries/joern/01-callgraph-unguarded-driver-launch.sc` | 3 | `d3bc40ae290`, `232d0d9cca3`, `1ac5915ed15` |
-| 02 | `queries/joern/02-dataflow-unguarded-driver-launch.sc` | 3 | `d3bc40ae290`, `232d0d9cca3`, `675f691eca9` |
-| 03 | `queries/joern/03-parameterized-handler-sink-pairs.sc` | 4 | `d3bc40ae290`, `232d0d9cca3`, `1072fd2334f`, `20a56482274` |
+| 01 | `queries/joern/01-callgraph-unguarded-driver-launch.sc` | 3 | `0e3e742a5ad`, `232d0d9cca3`, `1ac5915ed15` |
+| 02 | `queries/joern/02-dataflow-unguarded-driver-launch.sc` | 3 | `0e3e742a5ad`, `232d0d9cca3`, `675f691eca9` |
+| 03 | `queries/joern/03-parameterized-handler-sink-pairs.sc` | 4 | `0e3e742a5ad`, `232d0d9cca3`, `1072fd2334f`, `20a56482274` |
 
 Each count is relative to the HEAD it was taken at, and that is what makes it
 reproducible rather than a running tally: the range is that HEAD's own ancestry, every
@@ -1281,9 +1616,15 @@ published. Under the convention above, later revisions published **3, 3, 4**, th
 **4, 5, 5**, and a measurement taken while this generation's sources were being
 finished published **14, 15, 15**. Each was correct at the HEAD it named, and none of
 those HEADs is in this branch's history now — which is precisely why the HEAD is
-published beside the count. `harness/artifacts/logs/probe-query-revisions.json` is a
-rendering of the same measurement, states plainly that nothing reads it, and records
-that the envelope governs any disagreement. Every figure in the table is one
+published beside the count. The three counts are unchanged from the 2026-09-01
+generation's **3, 3, 4**, because the sources did not change; what moved is the window,
+from HEAD `d3bc40ae290` to HEAD `d933940aa3b`, and with it the newest commit each
+count names — `d3bc40ae290` there, `0e3e742a5ad` here.
+`harness/artifacts/logs/probe-query-revisions.json` is a
+rendering of the measurement taken at the earlier of those two HEADs; it states plainly
+that nothing reads it and that the envelope governs any disagreement, so the table
+above is the three envelopes' 2026-09-03 measurement and that file is neither its owner
+nor a second opinion on it. Every figure in the table is one
 measurement cited, not a second one taken.
 
 ### 2. Distinct Joern API constructs used
@@ -1359,7 +1700,7 @@ region prints
 | Sink | `DriverRunner.scala:240` at the pin | `DriverRunner.scala:240` at the pin — the same sink |
 | Entry points traversed | 2 of 2 | 1 of 1 |
 | Walks run | `A-follows-fan-out`, `B-fan-out-recorded` | `A-follows-fan-out`, `B-fan-out-recorded` |
-| Call sites considered | 33,565 and 11,575 | 9,038 and 1,247 |
+| Call sites considered | 21,476 and 4,383 | 8,949 and 1,230 |
 | Distinct routes | 0 | 0 |
 | Spurious | 0 | 0 |
 | Boundaries measured or cited | 4 | 5 |
@@ -1375,8 +1716,10 @@ result is captured**, in
 the envelope names as `second_pair_result_captured_in` and the three members of that
 query's completion manifest. The captured outcome, in the envelope's own words:
 *invoked; entry points traversed 1 of 1; walks run A-follows-fan-out and
-B-fan-out-recorded; call sites considered A-follows-fan-out=9038,
-B-fan-out-recorded=1247; distinct routes 0; spurious 0*. The envelope also publishes the
+B-fan-out-recorded; call sites considered A-follows-fan-out=8949,
+B-fan-out-recorded=1230; distinct routes 0; spurious 0; boundaries measured or cited 5
+(B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface,
+B-partial-function-pair-two)*. The envelope also publishes the
 exact parameter literals supplied for each pair — handler type, handler method,
 synthetic-type regex, synthetic method, body witness, base type, source file and line,
 sink callee regex, sink call name, sink host type regex, sink file and line, message-hop
@@ -1418,16 +1761,19 @@ and reading them as measurements would overstate what the probe established:
   by the two-depth comparison above, rather than claiming to have observed the
   internal bound.
 - **Which generation of the graph a figure belongs to is recorded rather than
-  flattened.** All three queries as they now stand loaded the same bytes —
-  541,309,809 / `4616845a…` — each verified against the record of account resolved
+  flattened.** All three queries as this report publishes them loaded the same bytes —
+  547,980,224 / `325887cf…`, the graph the 2026-09-03T01:17:07Z re-provisioning
+  wrote — each verified against the record of account resolved
   by provenance, `provision-log/cpg-identity.txt` corroborated by `cpg-record.txt`.
-  This path has held an earlier generation across this run's lanes, 541,255,894 /
-  `26d327cc…`, whose figures were stated in this tree by
-  `harness/ENVIRONMENT.md` §7 alone — not by `cpg-verify.log`, which records the
-  current pair and its own counts, and not by `joern.status`, which records no graph
-  identity at all — and, since that document's 2026-09-02 re-anchoring to the graph's
-  write-time record of account, by its supersession appendix alone. They are kept with their provenance in `run-record.md` **D4**
-  rather than restated here as though they described the current graph. The graph is a
+  This path has held two earlier generations across this run's lanes: 541,255,894 /
+  `26d327cc…` with 1,397,339 methods, stated in this tree by
+  `harness/ENVIRONMENT.md` §7 and by nothing this run measured; and
+  541,309,809 / `4616845a…` with 1,396,899 methods and 119,721 type declarations,
+  which the 2026-09-01 probe generation verified and loaded and which the
+  re-provisioning replaced. Both are kept with their provenance — in
+  `harness/ENVIRONMENT.md` §7's supersession appendix, in `run-record.md` **D4**, and
+  under their own date wherever they appear above — rather than restated as though they
+  described the current graph. The graph is a
   host-shared read-only file this run neither rebuilds nor replaces, and each of the
   three loads reported here was verified against the record of account for the bytes
   it read before reading them.
@@ -1445,6 +1791,14 @@ and reading them as measurements would overstate what the probe established:
 | Pinned source line numbers, and the `+11` offset caveat on `Worker.scala` in the working checkout | the pinned tree at `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`, and the caveat as published in envelope 01's route surface |
 | The byte size and sha256 of each `.sc` source, in the provenance disclosure — published from the envelope like every other figure, and additionally **confirmed** against the branch, which is the one comparison this report performs itself | the three envelopes' `source_integrity` and `provenance` blocks and the three streams' *query source bytes* / *query source sha256* lines, confirmed with `sha256sum` and `stat -c%s` over `queries/joern/01-callgraph-unguarded-driver-launch.sc`, `queries/joern/02-dataflow-unguarded-driver-launch.sc` and `queries/joern/03-parameterized-handler-sink-pairs.sc` |
 | The three retained private graph copies' paths, inodes and re-measured identity | the three streams' *private input (created)*, *private input after load* and *private input retained* lines, and each envelope's `graph.private_copy_retained_after_verification` |
+| Each query's pre-load identity check as a standalone capture — the pair, the check's elapsed time, the verdict, the record of account, the clone it ran in, and the `supersedes` line naming the 2026-09-01 figures | `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.identity.txt`, `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.identity.txt` and `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.identity.txt`, each a second rendering of the check its own console stream owns |
+| The presence and method counts of the six probe-surface types, the mangled `createDriver` name with its zero call sites, and the connect-shims collision resolved by query rather than by inference | `harness/artifacts/logs/cpg-verify.log`, PART 3.3, which is that sweep's owner; this report cites it and takes no measurement of the graph itself |
+| That the same current pair gates Stage 3, measured by the same `record_of_account()` resolution as the probe's own checks | `harness/artifacts/logs/joern-preflight.log`, which records the recorded and observed size and sha256 as MATCH on both values and `VERDICT: PASS` |
+| That the identity gate refuses a graph its record does not describe | `harness/artifacts/logs/joern-preflight-negative-test.log`, whose perturbation, `VERDICT: HALT`, gate exit 77 and restored-record re-run belong to an earlier lane and a different graph, and which is cited for the mechanism rather than for any figure of this graph |
+| Each query's invocation as executed — the command, its working directory, the closed stdin, the explicit graph selector and `graph.path_source` — and the JVM-argument disclosure of 1 observed, `-Xmx64g` kept as written, 0 reduced and 0 redacted | each envelope's `runtime.command`, `command_precondition`, `command_working_directory`, `command_graph_selector`, `command_completeness`, `jvm_arguments_observed_count`, `jvm_arguments_kept`, `jvm_arguments_redacted_count`, `jvm_arguments_redacted_keys` and `jvm_arguments_redaction_policy`, with `determinism.reproduction_command` carrying the same command text, and the three streams' `JVM memory/stack args`, `JVM other args (reduced)` and `JVM args kept / reduced` lines |
+| The byte size and sha256 of each of the nine publication members | the three completion manifests, each naming its members' `path`, `bytes` and `sha256`, and each deriving its own `member_set_id` from exactly those filename-and-digest pairs |
+| The frontend window of the graph these three loads read, and the `importCpg` verification triple taken at write time | `harness/ENVIRONMENT.md` §7 for the window and `harness/artifacts/logs/cpg-verify.log` for the triple; the provisioning's own record beside the graph states both but sits outside this checkout |
+| That the **earlier** generation's graph record is a separate in-tree file, kept with its generation rather than read as current | `harness/artifacts/logs/cpg-graph-record.log`, whose own lines 3, 6, 12 and 63 state its invocation, its `50 m 42 s` window with `FRONTEND_EXIT=0`, its sha256 `4616845a…` and its 541,309,809 bytes — the graph the 2026-09-03 re-provisioning replaced |
 
 Console evidence is
 `harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log`,
@@ -1458,4 +1812,6 @@ here records a halted invocation. Both artifact trees are git-ignored and are
 published by manifest with per-file byte size and sha256 in
 `harness/artifacts/MANIFEST.json` and `oss-scan-results/run-record.md` §16, which
 indexes this report but does not substitute for it: the per-query probe results are
-owned here.
+owned here. For the probe's own fifteen files the sizes and digests of this generation
+are tabulated above under "Every published member of this generation", together with
+the disagreement that tree-wide manifest still carries for nine of them.

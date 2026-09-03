@@ -1,6 +1,13 @@
 graph identity re-verified immediately before this query's load
-2026-09-01T15:30:31.248Z
-HARNESS_CPG=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/cpg/spark.cpg
+2026-09-03T10:07:18Z
+HARNESS_CPG=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg
 resolves_to=/opt/blitzy-harness/cpg/spark.cpg
-bytes=541309809
-sha256=4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+bytes=547980224
+sha256=325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+check_elapsed_ms=3995
+verdict=PASS
+record_of_account=/opt/blitzy-harness/provision-log/cpg-identity.txt, corroborated by cpg-record.txt
+written_by=the driver of the 2026-09-03 probe re-run (clone a424a0, BLITZY_CLONE_INDEX=424); the query source itself publishes three members and not this file
+the_query_s_own_stream=harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log, stage C-identity, which is the owner of these figures
+query_finished_at=10:16:53Z
+supersedes=the same file written by the driver of the w-013 lane on 2026-09-01, which stated 541309809 / 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7 - a graph provisioning has since replaced, so that identity is on no disk this checkout can reach

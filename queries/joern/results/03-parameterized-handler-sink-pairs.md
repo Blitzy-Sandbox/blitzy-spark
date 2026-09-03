@@ -21,16 +21,16 @@ any Spark component or of any Spark configuration.
 | Query source | `queries/joern/03-parameterized-handler-sink-pairs.sc` |
 | Query source sha256 | `8f67126c56185bde3221ad760130295cf9f7f64411be528e9fd578a4fbad631e` |
 | Query source byte size | 428057 |
-| Publication id | `89c38f6d823f564b15e025f74291916237b0cbe1e3f1f939fa8c93eefa904e69` |
+| Publication id | `58d6c2734d126da37eb974ffda7ae3084e30705d3c7d57167d536205f1548c0f` |
 | Envelope | `queries/joern/results/03-parameterized-handler-sink-pairs.json` |
 | Console log | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` |
 | Loader | `importCpg` into a switched workspace (`queries/joern/.workspace`) |
 | JDK major | 21 |
 | Heap actually used | 68719476736 bytes (floor 68719476736) |
-| Graph | 541309809 bytes, sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` |
+| Graph | 547980224 bytes, sha256 `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` |
 | Graph identity re-verified before the load | yes, against `provision-log/cpg-identity.txt` |
 | Bytes actually imported | a private copy this run made, digested in the copy pass, verified against that record, and re-verified by digest and inode after the load; both pairs were traversed over that one load |
-| Graph methods / typeDecls / files | 1396899 / 119721 / 45037 |
+| Graph methods / typeDecls / files | 1398964 / 119860 / 45037 |
 | Compile status | compiled |
 | Run status | completed |
 | Pairs declared / invoked | 2 / 2 |
@@ -46,7 +46,7 @@ This report was written by `queries/joern/03-parameterized-handler-sink-pairs.sc
 and digested it, so the digest above is a measurement of the writer rather than a
 label attached to it. The same digest appears in the envelope under
 `source_integrity.query_source_sha256` and in the console log, and all three
-members of this publication carry the identifier `89c38f6d823f564b15e025f74291916237b0cbe1e3f1f939fa8c93eefa904e69`.
+members of this publication carry the identifier `58d6c2734d126da37eb974ffda7ae3084e30705d3c7d57167d536205f1548c0f`.
 
 That is what makes the relationship between a source and its results checkable
 rather than assumed: digest the `.sc` file and compare. A result whose digest does
@@ -71,7 +71,7 @@ across queries.
 ### Pair `pair-one` - the standalone Master's driver-submission handler to the privileged process launch on the DriverRunner surface
 
 - **handler**: `org.apache.spark.deploy.master.Master.receiveAndReply`, at `core/src/main/scala/org/apache/spark/deploy/master/Master.scala:409` at the pin
-- **sink**: `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240` at the pin, resolved to 2 call site(s) on the sink host surface out of 1234 call(s) named `start` scanned (scan truncated: false)
+- **sink**: `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240` at the pin, resolved to 2 call site(s) on the sink host surface out of 1233 call(s) named `start` scanned (scan truncated: false)
   - `org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)` calls `org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()` at graph line 240 (dispatch `DYNAMIC_DISPATCH`)
   - `org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()` calls `java.lang.ProcessBuilder.start:java.lang.Process()` at graph line 276 (dispatch `DYNAMIC_DISPATCH`)
 - **entry points selected** (2):
@@ -86,8 +86,8 @@ across queries.
     loosened, removed or re-run unbounded to produce a non-empty result. The
     4 boundaries below are the measured reason.
 - **walks** (its own two, never combined with the other pair's):
-  - `A-follows-fan-out`: follows fan-out true, expansions 25009 across all of its entry points with 25006 the peak at any ONE entry point, call sites 33565, fan-out seen 86, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
-  - `B-fan-out-recorded`: follows fan-out false, expansions 5598 across all of its entry points with 5595 the peak at any ONE entry point, call sites 11575, fan-out seen 55, fan-out not followed 55, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
+  - `A-follows-fan-out`: follows fan-out true, expansions 19551 across all of its entry points with 19548 the peak at any ONE entry point, call sites 21476, fan-out seen 48, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
+  - `B-fan-out-recorded`: follows fan-out false, expansions 2350 across all of its entry points with 2347 the peak at any ONE entry point, call sites 4383, fan-out seen 31, fan-out not followed 31, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
 - **route surface for its own expected-spurious basis**: `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.Worker`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`; predicate call sites on it: 0
 
 ### Pair `pair-two` - the REST submit servlet's handleSubmit to the SAME privileged process launch on the DriverRunner surface
@@ -99,7 +99,7 @@ across queries.
     resolution is visible rather than looking like a slip.
   - the base declaration on `org.apache.spark.deploy.rest.SubmitRequestServlet` is present in the graph (1 node name(s)) and is **excluded** by the pair's
     exact type selector. Recorded rather than silently dropped.
-- **sink**: `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240` at the pin, resolved to 2 call site(s) on the sink host surface out of 1234 call(s) named `start` scanned (scan truncated: false)
+- **sink**: `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240` at the pin, resolved to 2 call site(s) on the sink host surface out of 1233 call(s) named `start` scanned (scan truncated: false)
   - `org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)` calls `org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()` at graph line 240 (dispatch `DYNAMIC_DISPATCH`)
   - `org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()` calls `java.lang.ProcessBuilder.start:java.lang.Process()` at graph line 276 (dispatch `DYNAMIC_DISPATCH`)
 - **entry points selected** (1):
@@ -113,8 +113,8 @@ across queries.
     loosened, removed or re-run unbounded to produce a non-empty result. The
     5 boundaries below are the measured reason.
 - **walks** (its own two, never combined with the other pair's):
-  - `A-follows-fan-out`: follows fan-out true, expansions 10146 across all of its entry points with 10146 the peak at any ONE entry point, call sites 9038, fan-out seen 29, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
-  - `B-fan-out-recorded`: follows fan-out false, expansions 764 across all of its entry points with 764 the peak at any ONE entry point, call sites 1247, fan-out seen 15, fan-out not followed 15, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
+  - `A-follows-fan-out`: follows fan-out true, expansions 10029 across all of its entry points with 10029 the peak at any ONE entry point, call sites 8949, fan-out seen 25, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
+  - `B-fan-out-recorded`: follows fan-out false, expansions 732 across all of its entry points with 732 the peak at any ONE entry point, call sites 1230, fan-out seen 12, fan-out not followed 12, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
 - **route surface for its own expected-spurious basis**: `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`, `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.Worker`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`; predicate call sites on it: 0
 
 ## Whether the bound was reached
@@ -125,11 +125,11 @@ named bound; none runs unbounded, and no bound is shared between the pairs, so o
 pair cannot consume the other's budget.
 
 - pair `pair-one`: `bound_reached` = **true**
-  - walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 25006 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 25009, which caps nothing; this walk contributed 33565 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
-  - walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 5595 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 5598, which caps nothing; this walk contributed 11575 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
+  - walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 19548 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 19551, which caps nothing; this walk contributed 21476 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
+  - walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 2347 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 2350, which caps nothing; this walk contributed 4383 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
 - pair `pair-two`: `bound_reached` = **true**
-  - walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 10146 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 10146, which caps nothing; this walk contributed 9038 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
-  - walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 764 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 764, which caps nothing; this walk contributed 1247 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
+  - walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 10029 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 10029, which caps nothing; this walk contributed 8949 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
+  - walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 732 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 732, which caps nothing; this walk contributed 1230 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
 
 A depth bound reached with a non-empty frontier says only that the walk stopped
 expanding, so on its own it would leave open whether a deeper walk would reach a
@@ -171,7 +171,7 @@ Neither figure is summed across the pairs.
 | pair pair-one entry: synthetic partial-function type declarations | `MAX_TYPE_SCAN` | 200000 | 2 | false |
 | pair pair-one entry: methods on those synthetic types | `MAX_TYPE_SCAN` | 200000 | 60 | false |
 | pair pair-one entry: source-level handler methods | `MAX_TYPE_SCAN` | 200000 | 2 | false |
-| calls named start (indexed sweep, shared by every pair using that name) | `MAX_CALL_SCAN` | 200000 | 1234 | false |
+| calls named start (indexed sweep, shared by every pair using that name) | `MAX_CALL_SCAN` | 200000 | 1233 | false |
 | pair pair-two entry: synthetic partial-function type declarations | `MAX_TYPE_SCAN` | 200000 | 0 | false |
 | pair pair-two entry: methods on those synthetic types | `MAX_TYPE_SCAN` | 200000 | 0 | false |
 | pair pair-two entry: source-level handler methods | `MAX_TYPE_SCAN` | 200000 | 2 | false |
@@ -574,12 +574,12 @@ files: each query measured its own against the graph of its own run.
 
 1. **Query revisions committed: 4.** Convention: commits touching queries/joern/03-parameterized-handler-sink-pairs.sc in the history of the HEAD this run measured at, newest first, counted at run time from the repository's own history. ONE convention, with three parts that make the number reproducible: the range is HEAD's own ancestry, named explicitly rather than defaulted, and the HEAD and the branch it was on are published beside the count; every commit returned is verified to be an ancestor of that HEAD, so a commit reachable only from another ref cannot enter the count - which is what happened to earlier figures once per-clone branches were reconciled and the commits a previous run had listed stopped being ancestors of the branch carrying its files; and the commit that PUBLISHES these result files is necessarily not among them, because it cannot exist while the run that writes them is still in progress. A later reader whose git log shows one more commit than the count reconciles against that window rather than against a bare number.
    Measurement: commits touching this path in HEAD's own history, newest first, every one verified an ancestor of the HEAD published beside this count.
-   Window: the history of HEAD `d3bc40ae290877827cbd422ba9025a4f54328ec0`, on branch `blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab`, named explicitly rather than defaulted, with every commit counted verified an
+   Window: the history of HEAD `d933940aa3bb6e3a81fb464114dad922cae76346`, on branch `blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab`, named explicitly rather than defaulted, with every commit counted verified an
    ancestor of that HEAD.
    The commits counted, newest first, so the number is auditable rather than
    asserted:
 
-   - `d3bc40ae290877827cbd422ba9025a4f54328ec0`
+   - `0e3e742a5ad2cb057fd2ebafb6f6a0137c82d21b`
    - `232d0d9cca3f15d33cedb96fa18dac3c6602668b`
    - `1072fd2334fc1a1b54b62119e086920e951ac209`
    - `20a56482274ab6c5f53b45f0488d2fa37012e03f`
@@ -624,7 +624,7 @@ files: each query measured its own against the graph of its own run.
    It passes ONLY where the parameterized query is actually invoked on the second named pair and that invocation's result is captured in this query's result files and console log; an empty result from a real invocation satisfies it, a skipped invocation does not, and a parameter list that merely exists does not.
 
    - first pair `pair-one`: invoked; entry points traversed 2 of 2; distinct routes 0; spurious 0; boundaries measured or cited 4
-   - second pair `pair-two` (`org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit` at `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268` to the launch at `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240`, both at the pin): invoked; entry points traversed 1 of 1; walks run A-follows-fan-out and B-fan-out-recorded; call sites considered A-follows-fan-out=9038, B-fan-out-recorded=1247; distinct routes 0; spurious 0; boundaries measured or cited 5 (B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-two)
+   - second pair `pair-two` (`org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit` at `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268` to the launch at `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240`, both at the pin): invoked; entry points traversed 1 of 1; walks run A-follows-fan-out and B-fan-out-recorded; call sites considered A-follows-fan-out=8949, B-fan-out-recorded=1230; distinct routes 0; spurious 0; boundaries measured or cited 5 (B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-two)
 
    The verdict rests on the second pair's invocation having actually run in this
    same run, and on its result being captured here, in the envelope and in the
@@ -681,7 +681,7 @@ files: each query measured its own against the graph of its own run.
 ## The graph this query loaded, and its identity
 
 - named path `$HARNESS_CPG` (repository-relative `harness/cpg/spark.cpg`), a symlink
-- resolved target: a host-shared read-only file outside the repository root, reached by following the symlink, **541309809** bytes, sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`
+- resolved target: a host-shared read-only file outside the repository root, reached by following the symlink, **547980224** bytes, sha256 `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6`
 - the link itself measures 33 bytes; that figure is recorded only to be
   discarded, because measuring the link rather than its target is the mistake this
   check exists to avoid
@@ -689,8 +689,8 @@ files: each query measured its own against the graph of its own run.
   a property of the checkout rather than of the measurement, and the size-and-digest
   pair above is what the identity comparison turns on. The literals are in
   `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`, a console stream not held to byte-identity
-- record of account: `provision-log/cpg-identity.txt`, which states bytes 541309809
-  and sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` - re-verified immediately before the load, and a
+- record of account: `provision-log/cpg-identity.txt`, which states bytes 547980224
+  and sha256 `325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` - re-verified immediately before the load, and a
   mismatch would have halted the run
 - its provenance: provisioning record of account for the graph this run did not write
 - it is resolved by **provenance**, not named by a constant: a write-time record

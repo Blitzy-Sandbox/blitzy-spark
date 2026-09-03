@@ -921,12 +921,12 @@ _CONTROL_METHOD: str = (
 #                                                                             #
 #   quantity          observed maximum                  cap here      margin  #
 #   ---------------------------------------------------------------------------#
-#   artifact bytes    73,840,948  (opengrep.sarif)       512 MiB       7.3x    #
+#   artifact bytes    73,768,116  (opengrep.sarif)       512 MiB       7.3x    #
 #   nesting depth             13  (datadog SARIF)             64       4.9x    #
-#   node count           230,343  (datadog SARIF)      5,000,000      21.7x    #
+#   node count           230,900  (datadog SARIF)      5,000,000      21.7x    #
 #   longest string       449,681  (opengrep, semgrep)     8 MiB       18.6x    #
-#   status file bytes     31,913  (joern.status)           4 MiB      131x     #
-#   numeric literal           11  (heap_used_bytes)            64       5.8x   #
+#   status file bytes        278  (datadog .status)        4 MiB   15,087x     #
+#   numeric literal            8  (artifact_bytes)            64       8.0x    #
 #                                                                             #
 # The margins are deliberately large: a bound tuned close to today's data      #
 # would halt a legitimate future run, and the point of a cap here is to make   #
@@ -969,7 +969,9 @@ JSON_STRING_LIMIT: int = 8 * 1024 * 1024
 
 #: The largest ``<tool>.status`` file this module will parse.  A status file is the
 #: runner's own key=value account of its invocation, not bulk output; the largest
-#: committed one is 31,913 bytes.  Over this bound the file is recorded as a named defect
+#: committed one is 278 bytes (``datadog-static-analyzer.status``), and an earlier
+#: generation's ``joern.status`` was a 31,913-byte stream capture (commit 232d0d9cca3),
+#: which is why the cap is here at all.  Over this bound the file is a named defect
 #: and not parsed -- it is log-side evidence, so refusing to parse it costs the record one
 #: measurement rather than costing the run its dataset.
 STATUS_FILE_BYTE_LIMIT: int = 4 * 1024 * 1024
@@ -978,8 +980,8 @@ STATUS_FILE_BYTE_LIMIT: int = 4 * 1024 * 1024
 #: number.  CPython raises ``ValueError`` from ``int()`` above 4,300 digits (the
 #: ``sys.set_int_max_str_digits`` limit), which ``str.isdigit()`` does not predict, so a
 #: guard that tests only for digits and then converts is a ValueError waiting for a
-#: hostile status file.  The longest literal any committed status file carries is 11
-#: digits.
+#: hostile status file.  The longest literal any committed status file carries is 8
+#: digits (``artifact_bytes=73768116`` in ``opengrep.status``).
 #:
 #: This is the package's ONE digit bound and it has three enforcement points, deliberately
 #: sharing a single number rather than growing a second one: a ``<tool>.status`` field,
@@ -998,7 +1000,7 @@ STATUS_NUMERIC_DIGIT_LIMIT: int = paths.STATUS_NUMERIC_DIGIT_LIMIT
 #: The largest ``runner-metadata.json`` this module will hand to ``paths``.  Checked here,
 #: by size, before the read happens: ``paths.load_runner_metadata`` owns the parse and is
 #: another module's file, so the allocation bound belongs on this side of the call.  The
-#: committed metadata is 117,676 bytes.
+#: committed metadata is 222,083 bytes.
 #: The byte cap on ``runner-metadata.json``, taken from the module that owns the read
 #: rather than restated here.  ``paths.load_runner_metadata`` enforces the same cap on its
 #: own side, together with the depth, node and string caps this side cannot reach, and one
@@ -1038,10 +1040,10 @@ INGESTION_BOUNDS: Mapping[str, Any] = MappingProxyType(
             "status_file_bytes": 278,
             "status_file_bytes_file": "datadog-static-analyzer.status",
             "status_numeric_digits": 8,
-            "runner_metadata_bytes": 200_825,
-            "runner_metadata_depth": 8,
-            "runner_metadata_nodes": 2_197,
-            "runner_metadata_string_characters": 1_496,
+            "runner_metadata_bytes": 224_049,
+            "runner_metadata_depth": 9,
+            "runner_metadata_nodes": 2_371,
+            "runner_metadata_string_characters": 1_862,
             "node_definition": (
                 "a node is a JSON value; an object member name is length-checked against "
                 "the string cap but is not itself counted as a node"
@@ -2060,7 +2062,7 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
     Two bounds, both on a file this module did not write.  A file above
     :data:`STATUS_FILE_BYTE_LIMIT` is measured, retained and named as a
     :data:`STATUS_DEFECT_FILE_TOO_LARGE` defect rather than parsed -- the largest committed
-    status file is 31,913 bytes, so a file above 4 MB is a stream capture that went wrong
+    status file is 278 bytes, so a file above 4 MB is a stream capture that went wrong
     rather than a longer account of one invocation.  And a numeric field is converted only
     through :func:`_status_integer`, which bounds the literal's digit count: the two
     conversions here used to gate on ``str.isdigit()`` and then call ``int()``, and that
@@ -2149,7 +2151,7 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
         return record
 
     # Bounded before it is read (CWE-400). A status file is one runner's key=value account
-    # of its own invocation -- the largest committed one is 31,913 bytes -- so a file above
+    # of its own invocation -- the largest committed one is 278 bytes -- so a file above
     # STATUS_FILE_BYTE_LIMIT is not a bigger status file, it is a stream capture that went
     # wrong. It is measured and retained above and named as a defect here rather than
     # parsed, and rather than halting the run: this is log-side evidence about one tool,
@@ -3805,7 +3807,7 @@ def _ingest_artifact_document(
             HALT_ARTIFACT_TOO_LARGE,
             f"{tool}: the artifact at {artifact_path} is {size} bytes, above the "
             f"{ARTIFACT_BYTE_LIMIT}-byte ingestion cap, so it was refused before any of it "
-            "was read. The largest artifact this pipeline has observed is 73,840,948 "
+            "was read. The largest artifact this pipeline has observed is 73,768,116 "
             "bytes; a file this size is not a bigger scan result.",
             tool=tool,
             artifact_path=str(artifact_path),
@@ -4488,7 +4490,7 @@ def _load_metadata(inputs: Inputs, record: dict[str, Any]) -> Mapping[str, Any]:
     --------------------------------------------------------------------------------------
     The metadata is the same kind of input as an artifact -- a JSON file this module did
     not write -- so it gets the same treatment in the same order.  ``os.stat`` against
-    :data:`RUNNER_METADATA_BYTE_LIMIT` first, with the committed metadata at 117,676 bytes
+    :data:`RUNNER_METADATA_BYTE_LIMIT` first, with the committed metadata at 222,083 bytes
     for scale.  Then the file is read once through :func:`_read_bounded_artifact_text` and
     its text is handed to :func:`_validate_document_bounds` against the three shape caps
     ``paths`` publishes -- ``paths.METADATA_DEPTH_LIMIT`` / ``METADATA_NODE_LIMIT`` /
@@ -4541,7 +4543,7 @@ def _load_metadata(inputs: Inputs, record: dict[str, Any]) -> Mapping[str, Any]:
             HALT_RUNNER_METADATA,
             f"the runner metadata at {inputs.runner_metadata} is {metadata_bytes} bytes, "
             f"above the {RUNNER_METADATA_BYTE_LIMIT}-byte cap on this input, so it was "
-            "refused before any of it was read. The committed metadata is 117,676 bytes; "
+            "refused before any of it was read. The committed metadata is 222,083 bytes; "
             "a file this size is not a longer account of nine runners.",
             runner_metadata=str(inputs.runner_metadata),
             observed_bytes=metadata_bytes,

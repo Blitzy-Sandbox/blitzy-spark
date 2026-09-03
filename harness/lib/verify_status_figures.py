@@ -61,6 +61,31 @@ after resolving ``python3`` to the interpreter path the record names -- for the 
 form, and for every per-module form, each of which must be the documented per-module
 template with its pattern swapped for that module's own filename.
 
+A FIGURE THAT AGREES WITH ITSELF AND WITH NOTHING ELSE
+======================================================
+The fourth family (``check_graph_input_inventory``) exists because a published total can
+be internally perfect and still four bytes wrong. ``cpg-input-inventory.json`` declared
+``total_bytes`` 285,122,371, which was EXACTLY the sum of its own 62 ``archives[]`` byte
+figures -- so every arithmetic check a reader could run against that document passed --
+while the provisioning record stated 285,122,375 and the staging tree measured
+285,122,375. Three members had been rewritten in place through their hard links into the
+shared build tree after the inventory was taken, two of them two bytes larger, and the
+only way to see it was to measure the tree member by member.
+
+So this family asserts the total twice, against two different things, because either
+assertion alone is satisfiable by a wrong number: the total must equal the sum of the
+document's own per-archive figures (self-consistency, which catches a total corrected
+without its addends and an addend corrected without its total), AND it must equal the
+measured sum over the tree the document names (command equality, which is what catches
+drift in the tree itself). ``archive_count`` is asserted the same two ways against the
+length of ``archives[]`` and the member count on disk.
+
+The staging tree is host-global and shared, so its absence is a SKIP WITH A STATED REASON
+rather than a failure -- a checkout without it can still adjudicate the self-consistency
+half, and a silent pass there would be indistinguishable from an assertion nobody made.
+Skips are printed with their reason and are deliberately NOT counted as assertions, so
+the summary's assertion count stays a count of comparisons actually performed.
+
 WHAT IT CHECKS, AND WHY EACH RULE IS SHAPED THE WAY IT IS
 =========================================================
 A test-count figure is legitimate at two granularities: the whole suite, or one module. So
@@ -111,6 +136,15 @@ SCANNED: Final[tuple[str, ...]] = (
     "oss-scan-results/tool-status.md",
     "oss-scan-results/run-record.md",
 )
+
+#: The graph-input inventory, whose two totals count things that can be counted again:
+#: its own per-archive figures, and the members of the staging tree it names.
+INVENTORY: Final[str] = "harness/artifacts/logs/cpg-input-inventory.json"
+
+#: The staging tree that inventory describes, used only when the inventory does not name
+#: its own (it does, under `staging_tree`). Host-global and shared with every other clone,
+#: so it is measured read-only and its absence is a stated skip.
+STAGING_TREE_DEFAULT: Final[str] = "/opt/blitzy-harness/cpg-input"
 
 
 def repo_root() -> Path:
@@ -585,6 +619,129 @@ def check_documented_commands(root: Path) -> tuple[list[str], list[str]]:
     return audit, problems
 
 
+# ---------------------------------------------------------------------------------------
+# Family four: the graph-input inventory's totals must equal what they count.
+# ---------------------------------------------------------------------------------------
+
+
+def check_graph_input_inventory(root: Path) -> tuple[list[str], list[str], int, int]:
+    """Require the inventory's totals to equal its own addends and the tree on disk.
+
+    Returns (audit lines, violations, assertions made, assertions skipped). A skip is
+    an audit line carrying its reason and is not counted as an assertion, because a
+    checker that reports a skip as a pass is a checker whose coverage cannot be read
+    off its own output.
+    """
+    path = root / INVENTORY
+    audit: list[str] = []
+    problems: list[str] = []
+    made = 0
+    skipped = 0
+
+    def assert_that(label: str, ok: bool, detail: str) -> None:
+        nonlocal made
+        made += 1
+        audit.append(f"  {'ok' if ok else 'DRIFT':5s} {INVENTORY} [{label}] {detail}")
+        if not ok:
+            problems.append(f"{INVENTORY} [{label}]: {detail}")
+
+    def skip(label: str, reason: str) -> None:
+        nonlocal skipped
+        skipped += 1
+        audit.append(f"  {'skip':5s} {INVENTORY} [{label}] not asserted: {reason}")
+
+    if not path.is_file():
+        return audit, [f"{INVENTORY} does not exist, so the graph-input figures it "
+                       f"publishes cannot be adjudicated"], made, skipped
+
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError) as error:
+        return audit, [f"{INVENTORY} could not be parsed, so its figures cannot be "
+                       f"adjudicated: {error}"], made, skipped
+
+    archives = data.get("archives")
+    total = data.get("total_bytes")
+    count = data.get("archive_count")
+
+    # The document's shape is asserted before its arithmetic: a missing or mistyped key
+    # would otherwise make every figure below unadjudicable while nothing failed.
+    shape_problems = []
+    if not isinstance(archives, list) or not archives:
+        shape_problems.append("`archives` is not a non-empty list")
+    elif not all(isinstance(entry, dict) and isinstance(entry.get("bytes"), int)
+                 for entry in archives):
+        shape_problems.append("some `archives[]` entry carries no integer `bytes`")
+    if not isinstance(total, int):
+        shape_problems.append(f"`total_bytes` is {total!r} rather than an integer")
+    if not isinstance(count, int):
+        shape_problems.append(f"`archive_count` is {count!r} rather than an integer")
+    assert_that("inventory-shape", not shape_problems,
+                f"`archives` is a list of {len(archives) if isinstance(archives, list) else 0} "
+                f"entries each carrying an integer `bytes`, with integer `total_bytes` and "
+                f"`archive_count`" if not shape_problems else "; ".join(shape_problems))
+    if shape_problems:
+        return audit, problems, made, skipped
+
+    # 1. Self-consistency: the published total against the document's own addends.
+    addends = sum(entry["bytes"] for entry in archives)
+    assert_that("total-bytes-self-consistent", total == addends,
+                f"`total_bytes` {total:,} equals the sum of its own {len(archives)} "
+                f"`archives[]` byte figures" if total == addends else
+                f"`total_bytes` is {total:,} while its own {len(archives)} `archives[]` "
+                f"byte figures sum to {addends:,}, a difference of {total - addends:+,} "
+                f"bytes; a total and its addends that disagree cannot both be the "
+                f"measurement")
+    assert_that("archive-count-self-consistent", count == len(archives),
+                f"`archive_count` {count} equals the length of `archives[]`"
+                if count == len(archives) else
+                f"`archive_count` is {count} while `archives[]` carries "
+                f"{len(archives)} entries")
+
+    # 2. Command equality: the same two figures against the tree the document names.
+    tree_name = data.get("staging_tree")
+    if not isinstance(tree_name, str) or not tree_name:
+        tree_name = STAGING_TREE_DEFAULT
+    tree = Path(tree_name)
+    if not tree.is_dir():
+        reason = (f"the staging tree {tree_name} is not present in this container; it is "
+                  f"host-global and shared, so its absence is a property of the host "
+                  f"rather than of the figure. The self-consistency half above still "
+                  f"holds the document to its own addends")
+        skip("total-bytes-equals-disk", reason)
+        skip("archive-count-equals-disk", reason)
+        return audit, problems, made, skipped
+
+    # Read-only, and st_size only: this tree is shared with every other clone and is
+    # hard-linked into the build tree, so nothing here writes, relinks or opens a member.
+    members = sorted(item for item in tree.iterdir() if item.is_file())
+    try:
+        measured = sum(item.stat().st_size for item in members)
+    except OSError as error:
+        skip("total-bytes-equals-disk",
+             f"{tree_name} could not be measured member by member: {error}")
+        skip("archive-count-equals-disk",
+             f"{tree_name} could not be measured member by member: {error}")
+        return audit, problems, made, skipped
+
+    assert_that("total-bytes-equals-disk", total == measured,
+                f"`total_bytes` {total:,} equals the measured sum over {tree_name} "
+                f"({len(members)} members, stat st_size)" if total == measured else
+                f"`total_bytes` is {total:,} while the {len(members)} members of "
+                f"{tree_name} measure {measured:,}, a difference of "
+                f"{total - measured:+,} bytes. The tree is hard-linked into the shared "
+                f"build tree, so a member rewritten there moves this figure without "
+                f"touching the document; recompute and republish rather than editing "
+                f"the total alone")
+    assert_that("archive-count-equals-disk", count == len(members),
+                f"`archive_count` {count} equals the member count of {tree_name}"
+                if count == len(members) else
+                f"`archive_count` is {count} while {tree_name} holds {len(members)} "
+                f"members")
+
+    return audit, problems, made, skipped
+
+
 def main(argv: list[str]) -> int:
     """Check every citation, print the audit, and return the process exit status."""
     quiet = "--quiet" in argv
@@ -618,9 +775,12 @@ def main(argv: list[str]) -> int:
     # reads in one pass and a failure in one does not hide the other's coverage.
     self_audit, self_problems = check_record_self_consistency(root)
     command_audit, command_problems = check_documented_commands(root)
+    inventory_audit, inventory_problems, inventory_made, inventory_skipped = (
+        check_graph_input_inventory(root))
     violations.extend(self_problems)
     violations.extend(command_problems)
-    assertions = len(self_audit) + len(command_audit)
+    violations.extend(inventory_problems)
+    assertions = len(self_audit) + len(command_audit) + inventory_made
 
     print("=" * 84)
     print("REPLICATED ADAPTER-TEST FIGURES vs THEIR ONE AUTHORITATIVE MEASUREMENT")
@@ -646,9 +806,19 @@ def main(argv: list[str]) -> int:
         print("-" * 84)
         print("\n".join(command_audit))
         print()
+        print("-" * 84)
+        print(f"THE GRAPH-INPUT TOTALS AGAINST THEIR OWN ADDENDS AND THE TREE ON DISK "
+              f"-- {INVENTORY}")
+        print("-" * 84)
+        print("\n".join(inventory_audit))
+        print()
     print(f"  figures checked     : {checked}")
     print(f"  assertions checked  : {assertions} "
-          f"({len(self_audit)} self-consistency, {len(command_audit)} command equality)")
+          f"({len(self_audit)} self-consistency, {len(command_audit)} command equality, "
+          f"{inventory_made} graph-input inventory)")
+    if inventory_skipped:
+        print(f"  stated skips        : {inventory_skipped} "
+              f"(named in the audit above with the reason; not counted as assertions)")
     print(f"  drifted             : {len(violations)}")
     print()
 

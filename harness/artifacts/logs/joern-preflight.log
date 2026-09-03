@@ -7,22 +7,34 @@ STAGE 3 PRE-LOAD GRAPH IDENTITY CHECK
   when this checkout's frontend wrote one, the provisioning record beside the
   graph itself, and always the identity declared by
   harness/ENVIRONMENT.md section 7. Records that disagree
-  are fatal and none is preferred for matching. The runner MEASURES and PRINTS
-  its input's size and digest, and harness/lib/joern-scan.sc calls importCpg and
-  then counts, so without this comparison a mismatch would reach the engine.
-  A mismatch here exits 77, and both committed callers refuse on it:
-  harness/bin/run-joern.sh -- the canonical direct runner -- runs this gate
-  --check-only before it touches its artifact or invokes joern and maps a
-  non-zero status to its own configuration fault (78), and
-  harness/lib/run-joern-gated.sh has no branch that reaches the runner after a
-  non-zero gate. The direct path is therefore bound by this status too, which
-  the invocation on record predates.
+  are fatal and none is preferred for matching. It also adjudicates the graph's
+  METHOD COUNT against AAP 0.9.2's floor of 853,420, because
+  identity and completeness are different facts: a truncated graph persisted
+  once has a consistent identity in every record that describes it. The runner
+  MEASURES and PRINTS its input's size and digest, and harness/lib/joern-scan.sc
+  calls importCpg and then counts, so without this comparison a mismatch or a
+  truncation would reach the engine.
+
+  Any fatal finding here exits 77. The callers that refuse on it are
+  harness/lib/run-joern-gated.sh, which has no branch reaching the runner after
+  a non-zero gate, and the run of record, which publishes this report to
+  harness/artifacts/logs/joern-preflight.log immediately before the Stage 3
+  load. harness/bin/run-joern.sh does NOT read it: it prints its input's
+  identity without comparing it, and it is REFERENCE under AAP 0.6.1, so closing
+  that inside the runner is a provisioning change whose patch is recorded in
+  oss-scan-results/run-record.md. A direct invocation of that runner is
+  therefore not bound by this status.
 
   Gate source             : harness/lib/preflight_graph_identity.py
-  Binding callers         : harness/bin/run-joern.sh (canonical, --check-only)
-                            harness/lib/run-joern-gated.sh (step 2 of 4)
-  Checked at (UTC)        : 2026-09-02T22:54:46Z
-  Clone index             : 0
+  Binding callers         : harness/lib/run-joern-gated.sh (step 2 of 4)
+                            the run of record, publishing to
+                            harness/artifacts/logs/joern-preflight.log before
+                            the Stage 3 load
+  NOT a caller            : harness/bin/run-joern.sh (REFERENCE, AAP 0.6.1
+                            -- it prints its input's identity without
+                            comparing it)
+  Checked at (UTC)        : 2026-09-03T09:07:46Z
+  Clone index             : 424
   Record of account       : /opt/blitzy-harness/provision-log/cpg-identity.txt
   Its provenance          : provisioning record of account for the graph this run did not write
   Corroborated by         : /opt/blitzy-harness/provision-log/cpg-record.txt, /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/ENVIRONMENT.md, which agree
@@ -30,9 +42,10 @@ STAGE 3 PRE-LOAD GRAPH IDENTITY CHECK
                             graph was written inside this checkout, so the two
                             AAP 0.6.4 names are the subjects that decide the load
   HARNESS_CPG in env      : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg
+  Method-count floor      : 853,420 methods (AAP 0.9.2, authored in this module)
 
-  Recorded size           : 541,309,809 bytes
-  Recorded sha256         : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+  Recorded size           : 547,980,224 bytes
+  Recorded sha256         : 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
 
   Every subject, each resolved and re-measured in its own right:
 
@@ -40,11 +53,44 @@ STAGE 3 PRE-LOAD GRAPH IDENTITY CHECK
       role      : the runner's actual input ($HARNESS_CPG as env.sh resolves it); also AAP 0.6.1 named path (harness/cpg/spark.cpg)
       symlink to: /opt/blitzy-harness/cpg/spark.cpg
       realpath  : /opt/blitzy-harness/cpg/spark.cpg
-      size      : 541,309,809 bytes   MATCH
-      sha256    : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7   MATCH
+      size      : 547,980,224 bytes   MATCH
+      sha256    : 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6   MATCH
       link size : 33 bytes (the link itself, not its target -- recorded only to discard it)
 
   All 1 subject(s) resolve to one file: yes
+
+  METHOD-COUNT FLOOR (AAP 0.9.2), adjudicated from the same records of account:
+
+    Floor                 : 853,420 methods -- the 5% lower bound around
+                            AAP 0.2.1's 898,336-method anchor, and ONE-SIDED:
+                            AAP 0.9.3 makes a count ABOVE the anchor a recorded
+                            difference and never a halt, because the anchor was
+                            measured over 32 JAR producers where a full reactor
+                            contributes 38, and more JARs cannot yield fewer
+                            methods. No upper comparison is performed, and
+                            adding one would halt the run for succeeding.
+    Claim                 : 1,398,964 methods
+      stated by           : /opt/blitzy-harness/provision-log/cpg-record.txt
+      its provenance      : provisioning record of account beside the resolved graph
+      evidence            : 1,398,964 methods, read from cpg-record.txt
+    Claim                 : 1,398,964 methods
+      stated by           : harness/ENVIRONMENT.md
+      its provenance      : declared record: harness/ENVIRONMENT.md section 7, the authoritative environment record
+      evidence            : 1,398,964 methods, declared by harness/ENVIRONMENT.md section 7
+    States no count       : harness/artifacts/logs/cpg-frontend.log
+      reason              : the record states no method count in either accepted
+                            form ('METHODS <n>' or a labelled 'methods:' line),
+                            which is a fact about the record rather than a failure
+    States no count       : /opt/blitzy-harness/provision-log/cpg-identity.txt
+      reason              : the record states no method count in either accepted
+                            form ('METHODS <n>' or a labelled 'methods:' line),
+                            which is a fact about the record rather than a failure
+    Adjudicated count     : 1,398,964 methods, agreed by 2 record(s) of account
+    Verdict               : FLOOR SATISFIED -- 1,398,964 >= 853,420
+                            1,398,964 also exceeds the 898,336 anchor, which
+                            AAP 0.9.3 RECORDS as a difference rather than
+                            halting on. This is not a window and must not
+                            be turned into one.
 
 ====================================================================================
 VERDICT: PASS

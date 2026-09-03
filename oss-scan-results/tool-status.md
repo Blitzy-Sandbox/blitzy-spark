@@ -61,12 +61,12 @@ Each row is expanded into a full entry below.
 | `trivy` | per record | 0 | `trivy.json` | clean | 3 | 0 |
 | `osv-scanner` | vuln | 128 | **none written** | absent | 0 | not applicable |
 | `dependency-check` | vuln | 0 | `dependency-check.json` | clean | 0 | 0 |
-| `joern` | sast | 0 | `joern.json` | partial | 107 | 586 |
+| `joern` | sast | 0 | `joern.json` | partial | 104 | 586 |
 
 Row counts and rejection counts are `normalize-run.json`
 `totals.rows_by_tool` and `totals.rejections_by_tool`; exit codes and artifacts
 are each tool's `<tool>.status`. The nine rows sum to the dataset's
-**9,430** emitted rows and **586** rejected records. The two tools with zero rows —
+**9,427** emitted rows and **586** rejected records. The two tools with zero rows —
 `osv-scanner` and `dependency-check` — are the reason this document exists, and
 their zeros mean different things: one wrote no artifact, the other wrote an
 artifact carrying no finding record.
@@ -123,32 +123,35 @@ sum it contributes to.
 
 | Assertion | Figures | Result | Source |
 | --- | --- | --- | --- |
-| Dataset-level sum of the per-artifact identities | `10016 = 9430 + 586` | pass | `normalize-run.json` `reconciliation.stage_b` |
-| Parsed `findings.json` rows against the dataset's emitted rows | `9430` against `9430` | pass | `normalize-run.json` `reconciliation.stage_c[0]` |
-| Parsed `findings.csv` rows against the dataset's emitted rows | `9430` against `9430` | pass | `normalize-run.json` `reconciliation.stage_c[1]` |
-| Parsed `findings.json` rows against parsed `findings.csv` rows | `9430` against `9430` | pass | `normalize-run.json` `reconciliation.stage_c[2]` |
+| Dataset-level sum of the per-artifact identities | `10013 = 9427 + 586` | pass | `normalize-run.json` `reconciliation.stage_b` |
+| Parsed `findings.json` rows against the dataset's emitted rows | `9427` against `9427` | pass | `normalize-run.json` `reconciliation.stage_c[0]` |
+| Parsed `findings.csv` rows against the dataset's emitted rows | `9427` against `9427` | pass | `normalize-run.json` `reconciliation.stage_c[1]` |
+| Parsed `findings.json` rows against parsed `findings.csv` rows | `9427` against `9427` | pass | `normalize-run.json` `reconciliation.stage_c[2]` |
 
-Stage B closes over nine artifacts, eight present and one absent: 10,016 raw
-finding records against 9,430 emitted rows plus 586 rejected records, with
-`failed_tools` empty.
+Stage B closes over nine artifacts, eight present and one absent: 10,013 raw
+finding records against 9,427 emitted rows plus 586 rejected records, with
+`failed_tools` empty. The superseded 2026-09-01 generation of this dataset closed at
+`10016 = 9430 + 586`; the three records that moved are all `joern`'s, its artifact having
+been rebuilt on 2026-09-03 against the graph provisioning rebuilt that day, and every
+other artifact's term is unchanged.
 
 The JSON and CSV row counts are asserted **separately** rather than one being
 inferred from the other, and then compared to each other as a third assertion.
 Both files were parsed to obtain them; neither figure comes from counting physical
-lines. Field-for-field comparison under typed coercion passed over 9,430 rows and
-113,160 fields with no first mismatch
+lines. Field-for-field comparison under typed coercion passed over 9,427 rows and
+113,124 fields with no first mismatch
 (`normalize-run.json` `output_comparison`).
 
-Row validation passed over all 9,430 emitted rows with zero violations: every row
+Row validation passed over all 9,427 emitted rows with zero violations: every row
 carries exactly the twelve fields in order, `path` and `severity_norm` are never
 absent, absence appears only in `severity_native`, `start_line`, `cwe`, `cve` and
 `package_coordinate`, and no emitted path is absolute
 (`normalize-run.json` `outputs.row_validation`). Each entry below states that
 result as it applies to that tool's own rows.
 
-Absence, counted per optional field over those 9,430 rows and taken from the same
-record: `cve` absent on **9,430** rows, `package_coordinate` absent on **9,430**,
-`cwe` absent on **8,674**, `severity_native` absent on **2,488** and `start_line`
+Absence, counted per optional field over those 9,427 rows and taken from the same
+record: `cve` absent on **9,427** rows, `package_coordinate` absent on **9,427**,
+`cwe` absent on **8,671**, `severity_native` absent on **2,488** and `start_line`
 absent on **3**. The `severity_native` figure is the sum of the four tools whose
 every row was banded on basis `no_vocabulary` in this run — `opengrep` 1,319,
 `semgrep` 1,162, `gitleaks` 1 and `checkov` 6, giving
@@ -172,33 +175,64 @@ Established once, from the provisioned files, and true of every entry below.
   no helper and no orchestrator (`runner-metadata.json`
   `harness_bin_inventory_summary`). The harness's non-runner helpers live outside
   that directory, in `harness/lib/`.
-- **One serial lane, with its chronology.** All nine invocations belong to run
-  `w013-20260901T132807Z`, clone index 13, and ran in **one serial lane** from
-  **2026-09-01T13:49:39Z to 14:41:25Z**: invocation N+1 started only after
-  invocation N returned, from one script in one process in one clone, in the
-  canonical tool order, with monotonic non-overlapping stamps and no runner
-  invoked twice (`harness/artifacts/logs/runner-sequence.json`, `lane` and
-  `serialization`). Each invocation's `argument_count` is **0**. Every artifact,
-  stream and `.status` file was measured by byte size and sha256 immediately
-  after that invocation returned, which is what binds those bytes to that
-  invocation and makes a later substitution detectable. The per-tool windows are
-  `opengrep` 13:49:39→14:13:06, `semgrep` 14:13:07→14:22:02,
+- **One serial lane for eight of the nine, and one re-invocation for the ninth.**
+  Eight invocations belong to run `w013-20260901T132807Z`, clone index 13, and ran in
+  **one serial lane** from **2026-09-01T13:49:39Z to 14:25:10Z**: invocation N+1 started
+  only after invocation N returned, from one script in one process in one clone, in the
+  canonical tool order, with monotonic non-overlapping stamps and no runner invoked twice
+  (`harness/artifacts/logs/runner-sequence.json`, `lane` and `serialization`). Their
+  per-tool windows are `opengrep` 13:49:39→14:13:06, `semgrep` 14:13:07→14:22:02,
   `datadog-static-analyzer` 14:22:02→14:22:59, `gitleaks` 14:22:59→14:23:13,
   `checkov` 14:23:13→14:24:46, `trivy` 14:24:46→14:25:03, `osv-scanner`
-  14:25:03→14:25:03, `dependency-check` 14:25:03→14:25:10 and `joern`
-  14:25:10→14:41:24.
+  14:25:03→14:25:03 and `dependency-check` 14:25:03→14:25:10. **`joern`'s invocation of
+  record is a later, separate one**: 2026-09-03T09:07:47Z→09:17:43Z in clone index 424,
+  596.83 s, exit 0, invoked directly with no arguments against the graph provisioning
+  rebuilt at 2026-09-03T01:17:07Z, because the graph the 2026-09-01 lane read is no
+  longer on this host. That is stated at the top level of the ledger as
+  `joern_reinvocation_2026_09_03` and in full in `runner-metadata.json`
+  `tools.joern.stage3_invocation_2026_09_03`; the ledger's own `joern` entry carries its
+  `superseded_on_2026_09_03` verdict in place and remains the true record of the
+  2026-09-01T14:25:10Z→14:41:24Z invocation and of no other. **The other eight are
+  untouched and unsuperseded** — their artifacts were not rebuilt and none of them reads
+  the graph, so only `joern` needed re-running. Each invocation's `argument_count` is
+  **0**, in both the lane and the re-invocation. Every artifact, stream and `.status`
+  file was measured by byte size and sha256 immediately after that invocation returned,
+  which is what binds those bytes to that invocation and makes a later substitution
+  detectable.
 - **The gate this lane ran behind, and its verdict.**
   `harness/artifacts/logs/gate-record.json` records **43 checks — 38 `pass`, 3
   `recorded_difference`, 2 `halt`** — and an overall `gate_verdict` of
   **`halt`**. The two halts are `gate.artifact_trees_exist_and_empty`, because
   both artifact trees already held this run's predecessors' content at the
   emptiness check, and `gate.environment_record_graph_identity_agreement`,
-  because the environment record's graph identity does not match the graph on
-  disk. The three recorded differences are the ruleset or feed identities of
-  `datadog-static-analyzer`, `trivy` and `dependency-check`, each stated in that
-  tool's entry below with both values and a not-comparable mark. That verdict is
-  reported here as measured; it authorises nothing, and no figure in this
-  document is presented as having passed a gate it did not.
+  because the environment record's graph identity did not match the graph on
+  disk at that instant. Their statuses now differ and the record keeps them apart in
+  `gate_verdict.state_now`: the artifact-tree condition is **still live**, both trees
+  being non-empty again after the re-provisioning, and no clone may create or clear
+  either (AAP 0.8.1); the graph-identity condition was corrected on 2026-09-02, that
+  correction **withdrawn on 2026-09-03** when the re-provisioning rebuilt the graph, and
+  **re-anchored the same day** to the graph now on disk, which holds and is evidenced by
+  an identity gate exiting 0 with `VERDICT: PASS`
+  (`harness/artifacts/logs/joern-preflight.log` line 96). The three recorded differences
+  are the ruleset or feed identities of `datadog-static-analyzer`, `trivy` and
+  `dependency-check`, each stated in that tool's entry below with every value it has
+  taken and a not-comparable mark. That verdict is reported here as measured; it
+  authorises nothing, and no figure in this document is presented as having passed a gate
+  it did not.
+- **Two of this run's own gates ran on 2026-09-03, outside every runner, and both
+  passed.** `harness/lib/preflight_scan_target.py` published
+  `harness/artifacts/logs/sec-gate-scan-target.{json,log}` at 2026-09-03T09:07:46Z with
+  exit 0, `VERDICT: PASS`, refusal count 0 and fault count 0, including
+  `smoke-override-absent` and the existence census of both artifact trees; and
+  `harness/lib/preflight_graph_identity.py` published
+  `harness/artifacts/logs/joern-preflight.log` at the same instant with exit 0 and
+  `VERDICT: PASS` on both the graph's identity and AAP 0.9.2's method-count floor. They
+  are recorded in `gate-record.json` under `this_runs_gates_2026_09_03`, which states in
+  its own words that they are additional controls and **not** a retrospective
+  authorisation of the stages that ran after the halt. Neither re-opens the artifact-tree
+  condition, and the scan-target gate says so itself: it refuses an absent or
+  non-directory tree and explicitly declines to refuse a non-empty one, emptiness being
+  Stage 0's condition and owned by the gate record.
 - **Argument guard.** Every runner's guard is its first executable statement and
   exits 64, ahead of the environment sourcing, the shared-library sourcing, the
   target resolution and the tool invocation. Each was established by
@@ -323,7 +357,7 @@ Established once, from the provisioned files, and true of every entry below.
 | Parse status | **clean** |
 | Records parsed / rejected | 1,319 parsed, **0 rejected**. No rejection class was engaged and no parser error was raised |
 | Reconciliation, per artifact | `1319 = 1319 + 0` — **pass** (`normalize-run.json` `reconciliation.stage_a`) |
-| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Reconciliation, dataset level | contributes to `10013 = 9427 + 586` — **pass** |
 | Row validation | pass; the 1,319 rows carry exactly the twelve fields, no absent `path` or `severity_norm`, and no absolute path. `severity_native` is **absent on all 1,319**, banded `Info` on basis `no_vocabulary` |
 | Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 132 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`. Resolved indirectly: the runner sources `harness/lib/scope.sh` and calls `scope_resolve_target`, which reads the variable and exports `SCAN_ROOT` |
@@ -487,7 +521,7 @@ established.
 | Parse status | **clean** |
 | Records parsed / rejected | 1,162 parsed, **0 rejected**. No rejection class engaged, no parser error |
 | Reconciliation, per artifact | `1162 = 1162 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Reconciliation, dataset level | contributes to `10013 = 9427 + 586` — **pass** |
 | Row validation | pass over this tool's 1,162 rows. `severity_native` is **absent on all 1,162**, banded `Info` on basis `no_vocabulary` |
 | Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 132 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 28. The target comes from the environment, never from the working directory |
@@ -565,18 +599,18 @@ and parses.
 | Field | Value |
 | --- | --- |
 | Version | observed **0.9.1**, revision `f76636e43554f7f9a8e3984a31d03ec8dea5489f`; expected 0.9.1 revision `f76636e4` — as expected, the observed revision's first eight characters being the abbreviated revision the expected value names. Read from the tool's own Configuration block and corroborated by the SARIF driver version. The release tag carries no leading `v`: `tags/0.9.1` resolves and `tags/v0.9.1` is a 404 |
-| Ruleset identity | **three values, all three recorded, and they do not agree.** Observed at `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json`: **sha256 `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322`, 53 rulesets, 1,147 rules**, 4,068,707 bytes, counted from the file itself and printed by `sha256sum "$DD_SAST_RULES_FILE"` at the gate (`gate-record.json` check `gate.ruleset_identity.datadog-static-analyzer`, `stdout`). Expected by the request's table: **sha256 `e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7`, 48 rulesets, 1,093 rules**. Stated by the inherited environment record: a third digest, **`4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1`, 48 rulesets, 1,093 rules**. The table governs the field it carries; no value is discarded and none is reconciled into another. The tool's own stdout corroborates the observed count from the other direction, printing `#static analysis rules : 1147` and `Rules evaluated: 1147` |
-| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** The observed ruleset digest differs from the expected identity **and** carries 5 more rulesets and 54 more rules, so a different rule set produced this count for reasons that have nothing to do with the code. This tool's finding count must not be read against the rehearsal's figure. The gate records the same difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
-| Reproducibility gap | **NAMED.** The rule set is fetched from Datadog's API at capture time and the publisher supplies no digest for it, so the captured file's own sha256 is the only identity that exists. Provisioning closing that gap — capturing the rules into one local file the runner reads offline with `-r` — is what makes this invocation reproducible at all; it does not make the upstream set identifiable |
+| Ruleset identity | **four values, all four recorded, and they do not agree.** Read by this invocation, at `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json` as it then stood: **sha256 `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322`, 53 rulesets, 1,147 rules**, 4,068,707 bytes, counted from the file itself and printed by `sha256sum "$DD_SAST_RULES_FILE"` at the gate (`gate-record.json` check `gate.ruleset_identity.datadog-static-analyzer`, `stdout`), and retained byte-identically in this run's own log tree. **Live at that same path today, after the 2026-09-03T01:17:07Z re-provisioning: a fourth identity, sha256 `d945a118d03fba3a50d1c23363b9f38d5f5291814d508c8d3346754cc7dc6ebf`, 7,499,997 bytes, 51 rulesets and 1,117 rules**, stated by the provisioning record of account `/opt/blitzy-harness/provision-log/rulesets-feeds.txt`, whose header dates the re-provisioning and whose datadog line records the capture as anonymous and proven offline. Expected by the request's table: **sha256 `e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7`, 48 rulesets, 1,093 rules**. Stated by the inherited environment record: **`4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1`, 48 rulesets, 1,093 rules**. The table governs the field it carries; no value is discarded and none is reconciled into another. The tool's own stdout corroborates the count it actually read from the other direction, printing `#static analysis rules : 1147` and `Rules evaluated: 1147` |
+| Comparability | **NOT COMPARABLE WITH THE REHEARSAL**, on two grounds rather than one, and the mark is required rather than optional — AAP 0.4.2 attaches it to a tool's finding count in this document's own entry whenever an observed ruleset digest differs from the expected identity. First: the digest this invocation read is not the expected digest, and it carries 5 more rulesets and 54 more rules than the table's 48 / 1,093. Second, and newer: the file at that path is **no longer** the file this invocation read — the re-provisioning replaced it with a 51 / 1,117 ruleset at a different digest and nearly twice the byte size — so a re-run today would evaluate a third rule set again. Either way a different rule set produces a different count for reasons that have nothing to do with the code, and **this tool's 6,832 findings must not be read against the rehearsal's figure**. The gate records the digest difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
+| Reproducibility gap | **NAMED, and since demonstrated.** The rule set is fetched from Datadog's API at capture time — anonymously, no credential being provisioned — and the publisher supplies no digest for it, so the captured file's own sha256 is the only identity that exists. Provisioning closing that gap — capturing the rules into one local file the runner reads offline with `-r` — is what makes this invocation reproducible at all; it does not make the upstream set identifiable. The second half of the gap is no longer hypothetical: `-r` reads a **shared mutable** path, and that path has now in fact mutated — the 2026-09-03T01:17:07Z re-provisioning replaced its 53 / 1,147 contents with a 51 / 1,117 capture at a different digest, which is exactly the exposure this entry described before it happened. What protects **this** invocation is that its bytes were digested before it ran and retained inside this run's own log tree; nothing protects a later run |
 | Feed state | **not applicable as a feed**, so none of the four outcomes applies — the rules are a captured local file. `fetched_at_scan_time: false`, proven by the tool's own `config method : none (no local file and no remote configuration)` alongside `-r` pointing at the captured file, so **no API call was made for rules at scan time**. The reproducibility gap this tool does carry is at **capture** time and is named in its own row above; it is not a scan-time fetch |
 | Exit code | **0**, expected 0 — as expected. The runner captures the tool's own code at line 53 and exits with it unchanged |
 | Elapsed | expected **57 s**, observed **57 s** — as expected. `datadog-static-analyzer.status` `elapsed_seconds=57`; the lane ledger measures the same window as **56.25 s**, 2026-09-01T14:22:02Z to 14:22:59Z, and the tool's own inner measurement reports `Duration: 55.638s`, 0.612 s below the ledger's wall clock |
-| Finding count | expected **6,832**, observed **6,832** — as expected. Taken from the parsed artifact's `runs[0].results` length, which equals the tool's own `Total violations: 6832`. The identical count against a ruleset that differs in digest and rule count is recorded as observed and is **not** read as evidence that the two rule sets are equivalent; the not-comparable mark above stands regardless |
+| Finding count | expected **6,832**, observed **6,832** — as expected. Taken from the parsed artifact's `runs[0].results` length, which equals the tool's own `Total violations: 6832`. The identical count against a ruleset that differs in digest and rule count is recorded as observed and is **not** read as evidence that the two rule sets are equivalent; the not-comparable mark above stands regardless. This artifact was **not** re-run in this checkpoint — only `joern` reads the graph, so only `joern` needed re-running — so these 6,832 rows derive from the 53 / 1,147 capture retained in this run's log tree, which is no longer the file at the shared path |
 | Output format | SARIF 2.1.0, artifact `harness/artifacts/raw/datadog-static-analyzer.sarif`, **5,723,938 bytes**, sha256 `a71dc70d69fa9d93b84eed180e46b568dea98581e25e5cb3ebd5ae4668465372` |
 | Parse status | **clean** |
 | Records parsed / rejected | 6,832 parsed, **0 rejected**. No rejection class engaged, no parser error |
 | Reconciliation, per artifact | `6832 = 6832 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Reconciliation, dataset level | contributes to `10013 = 9427 + 586` — **pass** |
 | Row validation | pass over this tool's 6,832 rows. This is the only SARIF producer of the three whose results carry a `level`, so it is the only one contributing a non-absent `severity_native`: `error` 195 rows → High, `warning` 1,342 → Medium, `note` 5,275 → Low, `none` 20 → Info, all on basis `sarif_level` (`normalize-run.json` `severity_literals.tools`) |
 | Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 132 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` |
@@ -599,39 +633,51 @@ scan-time digest and preserved in the log tree.** `-r "$DD_SAST_RULES_FILE"`
 points at a **shared, mutable** path outside this repository,
 `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json`, so the path alone
 identifies nothing. What identifies the bytes is that the runner measured them
-**before invoking** and printed the digest into its own stream. The three
+**before invoking** and printed the digest into its own stream — and, since
+2026-09-03, that the shared path no longer holds those bytes. The four
 identities and their sources:
 
 | Identity | sha256 | Rulesets / rules | Where it is recorded |
 | --- | --- | ---: | --- |
 | **Read by this invocation** | `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322`, 4,068,707 bytes | 53 / 1,147 | printed at scan time by the runner itself — `harness/bin/run-datadog-static-analyzer.sh` lines 37–38 — into `harness/artifacts/logs/datadog-static-analyzer.runner-console.log` as `rules file : /opt/blitzy-harness/rules/datadog/datadog-sast-rules.json (sha256 c5fd464c…)`, a stream the lane ledger binds by byte size and sha256 to this tool's invocation. The same digest is the gate's own `sha256sum "$DD_SAST_RULES_FILE"` reading (`gate-record.json` check `gate.ruleset_identity.datadog-static-analyzer`, `stdout`) and `runner-metadata.json` `ruleset_or_feed_identity.observed_identity`; the counts are from parsing the file — a JSON array of 53 ruleset objects whose `rules` arrays sum to 1,147 — and the tool's own stdout agrees at `#static analysis rules  : 1147` (line 8) and `Rules evaluated: 1147` (line 31) |
 | Expected by the AAP | `e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7` | 48 / 1,093 | the request's expected-values table, carried in `runner-metadata.json` `expected_identity` with `identity_matches_expected: false`. Never observed on this host |
-| Stated by the inherited environment record | `4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1` | 48 / 1,093 | `harness/ENVIRONMENT.md` lines 111 and 814. An inherited statement about the provisioning, not an observation of this invocation |
+| Stated by the inherited environment record | `4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1` | 48 / 1,093 | `harness/ENVIRONMENT.md` lines 111 and 814, in its ruleset table and again in its inlined-values block. An inherited statement about the provisioning, not an observation of this invocation, and that record is itself under re-anchoring in this checkpoint |
+| **Live at the shared path today**, and read by no invocation in this run | `d945a118d03fba3a50d1c23363b9f38d5f5291814d508c8d3346754cc7dc6ebf`, 7,499,997 bytes | 51 / 1,117 | `/opt/blitzy-harness/provision-log/rulesets-feeds.txt`, the provisioning record of account, headed `re-provisioned 2026-09-03T01:17:07+00:00` and recording the capture as an anonymous API capture proven offline at `#static analysis rules : 1117`. Recorded here because AAP 0.4.2 requires the ruleset a count depends on to be identifiable, and the path this runner reads is shared and mutable: the bytes behind the 6,832 rows are the row above, not this one |
 
 **The captured copy is the scan's input, and saying which file it equals is the
 whole point.** `harness/artifacts/logs/datadog-sast-rules.captured.json` is
 4,068,707 bytes with sha256
 `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322` — **byte-identical
-to the shared file** (`cmp` reports no difference; both parse to 53 rulesets and
-1,147 rules) **and equal to the digest the runner printed before invoking**. So the
-rule bytes this tool evaluated are retained inside this run's own evidence tree,
-and a reader can compare a finding against the rule that produced it rather than
-against a later generation of a moving file.
+to the shared file as it stood when this tool ran** (`cmp` reported no difference then;
+both parsed to 53 rulesets and 1,147 rules) **and equal to the digest the runner printed
+before invoking**. So the rule bytes this tool evaluated are retained inside this run's
+own evidence tree, and a reader can compare a finding against the rule that produced it
+rather than against a later generation of a moving file — which is now the only way to do
+it, because the shared file **is** a later generation: since 2026-09-03T01:17:07Z it holds
+`d945a118d0…c6ebf` at 7,499,997 bytes over 51 rulesets and 1,117 rules, so a `cmp` run
+today reports a difference and the retained capture is the sole surviving copy of the
+bytes behind these 6,832 rows.
 
 **What survives as a reproducibility gap, and what does not.** Two things survive,
 and neither is repaired: the rule set is fetched from Datadog's API at **capture**
 time and the publisher supplies no digest, so the captured file's own sha256 is the
 only identity that exists for it — the same kind of gap the `osv-scanner` entry
-names for its live API; and `-r` reads a shared mutable path, so a later mutation
-would change what a **later** run reads with nothing in the runner to notice it.
+names for its live API; and `-r` reads a shared mutable path, so a mutation changes what
+a **later** run reads with nothing in the runner to notice it. **That second one has now
+occurred**: the 2026-09-03 re-provisioning replaced those bytes with a 51 / 1,117 capture
+at digest `d945a118d0…c6ebf`, and the runner would have read it without remarking on the
+change. It is recorded rather than repaired — pointing `-r` at a content-addressed
+private copy is an edit to `harness/bin/run-datadog-static-analyzer.sh`, which AAP 0.8.1
+forbids, and re-invoking the scanner against the new bytes is prohibited by the same rule.
 What does **not** survive is the traceability claim an earlier generation of this
 entry made — that this tool's 6,832 rows cannot be traced to the rule bytes that
 produced them. Measured against the files this checkout carries they can, through
 the scan-time print and the retained capture, so that claim is withdrawn rather
 than softened. The `Comparability` mark stays **NOT COMPARABLE WITH THE REHEARSAL**
-on its own separate ground, untouched by any of this: the observed digest is not
-the expected digest and the observed 53 / 1,147 is not the expected 48 / 1,093, so
-this tool's count differs for reasons that have nothing to do with the code. Two
+on its own separate ground, untouched by any of this: the digest this invocation read is
+not the expected digest and its 53 / 1,147 is not the expected 48 / 1,093, and the live
+file's 51 / 1,117 at `d945a118d0…c6ebf` is neither of those either, so this tool's count
+differs for reasons that have nothing to do with the code. Two
 further facts are measured and neither bears on that mark: the tool made **no API
 call for rules** at scan time (`fetched_at_scan_time: false`, and its own
 `config method : none`), so the rules it evaluated came from a local file rather
@@ -670,9 +716,15 @@ observation. Those readings equal the gate's `observed` for check
 `gate.ruleset_identity.datadog-static-analyzer`, the captured file's own
 `datadog-sast-rules.captured.meta.json`, and the tool's own stdout at line 8 and
 line 31; and `rule_count_matches_expected: false` is the same reading the
-`Comparability` row above applies. **The counts of record are 53 rulesets and 1,147
-rules**, in this document and in its owner, and they are now one measurement cited
-twice rather than two. The history is worth one sentence and no more: an earlier
+`Comparability` row above applies. **The counts of record for this invocation are 53 rulesets and 1,147
+rules**, in this document and in its owner, and they are one measurement cited twice
+rather than two. They are the counts of the bytes that were read, and deliberately not of
+the file at that path today: `observed_identity` in that node dates its capture
+`2026-08-30T17:51:40Z`, and the live 51 / 1,117 at `d945a118d0…c6ebf` is recorded in the
+identity table above from the provisioning record of account rather than folded into this
+node, because no invocation in this run read it. That node's `difference_detail` still
+enumerates three values; the fourth is stated here and in the table, which is where a
+figure no invocation measured belongs. The history is worth one sentence and no more: an earlier
 generation of that node carried the superseded 48 / 1,093 pair in those scalars
 with `rule_count_matches_expected: true`, which is why an earlier generation of
 this paragraph stated the correction as owed rather than made.
@@ -746,8 +798,8 @@ Analyzing 591 Java files using 109 rules
   Duration: 55.638s
 ```
 
-The `rules languages` line above is the pinned ruleset's own language list as the
-tool printed it, and Scala is not among the fourteen. The `Analyzing` lines are the
+The `rules languages` line above is the language list of the ruleset this invocation
+read, as the tool printed it, and Scala is not among the fourteen. The `Analyzing` lines are the
 same fact from the other direction: the languages this invocation analysed were
 JavaScript, Bash, Python and Java. This is invisible from the finding count alone,
 which is why it is recorded here in the tool's own output rather than summarised.
@@ -765,8 +817,9 @@ a fourteen-entry `languages` array — and corroborated by parsing
 `harness/artifacts/logs/datadog-sast-rules.captured.json` itself, which yields 53
 rulesets, 1,147 rules and **zero** rules whose language is Scala. It is cited here,
 not measured again. This is the most consequential reach fact about this tool, and
-it is a property of the pinned ruleset rather than a judgement about the tool: the
-count alone would show none of it.
+it is a property of the ruleset this invocation read rather than a judgement about the
+tool: the count alone would show none of it. Whether the 51 / 1,117 ruleset now at that
+path carries Scala rules is not measured here, no invocation in this run having read it.
 
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
 and parses. `harness/artifacts/logs/datadog-static-analyzer.stderr.log` is 0
@@ -794,7 +847,7 @@ would need.
 | Parse status | **clean** |
 | Records parsed / rejected | 1 parsed, **0 rejected**. No rejection class engaged, no parser error |
 | Reconciliation, per artifact | `1 = 1 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Reconciliation, dataset level | contributes to `10013 = 9427 + 586` — **pass** |
 | Row validation | pass over this tool's 1 row |
 | Adapter fixture | **pass** — `test_gitleaks_adapter`, 93 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 33 |
@@ -870,7 +923,7 @@ and parses.
 | Parse status | **clean** |
 | Records parsed / rejected | 6 parsed, **0 rejected**. No rejection class engaged, no parser error, and `parsing_errors` is 0 |
 | Reconciliation, per artifact | `6 = 6 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Reconciliation, dataset level | contributes to `10013 = 9427 + 586` — **pass** |
 | Row validation | pass over this tool's 6 rows |
 | Adapter fixture | **pass** — `test_checkov_adapter`, 127 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 28 |
@@ -974,9 +1027,9 @@ a per-section breakdown rather than a single class.
 | Field | Value |
 | --- | --- |
 | Version | observed **0.74.0**, expected 0.74.0 — as expected. `trivy --version` printed `Version: 0.74.0`, recorded at the gate; resolved path `/opt/blitzy-tools/bin/trivy` |
-| Feed identity | observed **vulnerability DB v2 `UpdatedAt=2026-08-30T13:05:01.49156526Z`** (downloaded 2026-08-30T17:47:54.627411305Z) and **java DB v1 `UpdatedAt=2026-08-30T01:07:49.364681226Z`** (downloaded 2026-08-30T17:48:13.944393633Z); expected **vulnerability DB v2, 2026-08-23T06:56:50Z** and **java DB v1, 2026-08-23T01:05:59Z** — **DIFFERS**. Both database versions match (v2 and v1); both timestamps are seven days later than expected. The inherited environment record states a third pair, v2 2026-08-24T06:55:32.451220873Z and v1 2026-08-24T01:07:04.599776272Z. All values are recorded and none is reconciled into another |
-| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** A feed seven days newer resolves a different advisory set, so this tool's counts differ for reasons that have nothing to do with the code. The gate records the same difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
-| Feed identity provenance | Two records that agree. The gate measured it live from the scanner's own output, `trivy --version` (`gate-record.json` check `gate.feed_identity.trivy`, `stdout`), so the timestamps are the ones the scanner itself reports; and the runner dumps the same identity into its console stream before invoking — `harness/artifacts/logs/trivy.runner-console.log`, `vuln db : v2 UpdatedAt=2026-08-30T13:05:01.49156526Z` and `java db : v1 UpdatedAt=2026-08-30T01:07:49.364681226Z` — read from `$TRIVY_CACHE_DIR/db/metadata.json` and `$TRIVY_CACHE_DIR/java-db/metadata.json`. One measurement cited twice |
+| Feed identity | **Read by this invocation**: vulnerability DB **v2 `UpdatedAt=2026-08-30T13:05:01.49156526Z`** (downloaded 2026-08-30T17:47:54.627411305Z) and java DB **v1 `UpdatedAt=2026-08-30T01:07:49.364681226Z`** (downloaded 2026-08-30T17:48:13.944393633Z). Expected by the request's table: **vulnerability DB v2, 2026-08-23T06:56:50Z** and **java DB v1, 2026-08-23T01:05:59Z** — **DIFFERS**; both database versions match (v2 and v1) and both timestamps are seven days later than expected. Stated by the inherited environment record: a third pair, v2 2026-08-24T06:55:32.451220873Z and v1 2026-08-24T01:07:04.599776272Z. **Live in the seeded cache today, after the 2026-09-03T01:17:07Z re-provisioning and read by no invocation in this run**: vulnerability DB **v2 `UpdatedAt=2026-09-02T20:01:19.708956607Z`**, `NextUpdate=2026-09-03T20:01:19.708955908Z`, `trivy.db` 1,336,410,112 bytes, and java DB **v1 `UpdatedAt=2026-09-02T01:07:52.720279557Z`** — stated by `/opt/blitzy-harness/provision-log/rulesets-feeds.txt` and by each cache's own `metadata.json`. Four values for the vulnerability DB and four for the java DB; all are recorded and none is reconciled into another. This artifact was **not** re-run in this checkpoint, so its 3 records derive from the 2026-08-30 pair |
+| Comparability | **NOT COMPARABLE WITH THE REHEARSAL**, and now on two grounds. The feed this invocation read is seven days newer than the table's, which resolves a different advisory set. And the cache at that path is **no longer** the cache it read — the re-provisioning advanced it a further three days — so a re-run today would resolve a third advisory set again. Either way this tool's counts differ for reasons that have nothing to do with the code. The gate records the read-versus-expected difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
+| Feed identity provenance | Two records that agree. The gate measured it live from the scanner's own output, `trivy --version` (`gate-record.json` check `gate.feed_identity.trivy`, `stdout`), so the timestamps are the ones the scanner itself reports; and the runner dumps the same identity into its console stream before invoking — `harness/artifacts/logs/trivy.runner-console.log`, `vuln db : v2 UpdatedAt=2026-08-30T13:05:01.49156526Z` and `java db : v1 UpdatedAt=2026-08-30T01:07:49.364681226Z` — read from `$TRIVY_CACHE_DIR/db/metadata.json` and `$TRIVY_CACHE_DIR/java-db/metadata.json`. One measurement cited twice. Both readings are of the caches **as they then stood**: those two metadata files now state the 2026-09-02 pair recorded in the row above, so the values here are this invocation's provenance rather than a description of the caches today |
 | Feed state | **not attempted.** The runner bakes `--skip-db-update`, `--skip-java-db-update` and `--skip-check-update`, so no refresh was attempted and the seeded caches were used as found. Of the four outcomes this is the third. `--offline-scan` is also baked in, so no dependency resolution against a remote registry occurs at scan time; there was no scan-time fetch and therefore no reproducibility gap of that kind |
 | Exit code | **0**, expected 0 — as expected. All 18 per-directory invocations printed `exit=0`, and the runner keeps the worst non-zero code across them |
 | Elapsed | expected **17 s**, observed **17 s** — as expected. `trivy.status` `elapsed_seconds=17`; the lane ledger measures the same window as **16.624 s**, 2026-09-01T14:24:46Z to 14:25:03Z |
@@ -986,7 +1039,7 @@ a per-section breakdown rather than a single class.
 | Parse status | **clean** |
 | Records parsed / rejected | 3 parsed, **0 rejected**. No rejection class engaged, no parser error |
 | Reconciliation, per artifact | `3 = 3 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Reconciliation, dataset level | contributes to `10013 = 9427 + 586` — **pass** |
 | Row validation | pass over this tool's 3 rows. `start_line` is **absent** on all three, which is legitimate: line information appears on secrets and misconfigurations where the section supplies it, and all three of these records carry a `CauseMetadata` with `Provider` and `Service` only |
 | Adapter fixture | **pass** — `test_trivy_adapter`, 199 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 45 |
@@ -1055,7 +1108,7 @@ the record.
 | --- | --- |
 | Version | observed **2.5.1** (`osv-scalibr` 0.5.2), expected 2.5.1 — as expected. `osv-scanner --version` printed `osv-scanner version: 2.5.1`; binary `/opt/blitzy-tools/bin/osv-scanner` |
 | Feed identity | observed **no local database — queries the OSV API live at scan time**, expected the same — **matches**. The runner states it at line 40: `database : none local - queries the OSV API (https://api.osv.dev) at scan time`. That host is the API's **request endpoint** rather than a browsable page and does not resolve to one; this document's own reference for the API is <https://google.github.io/osv.dev/api/>, with the project page at <https://osv.dev/>. Both the quoted host and the two citations were measured, and the figures are below under *The reference this document cites for that API, and the status of the host the runner names* |
-| Comparability | **comparable** on identity — the observed feed identity is the expected one. There is no count to compare, no artifact having been written |
+| Comparability | **comparable** on identity — the observed feed identity is the expected one, and it is the one identity in this document that the 2026-09-03T01:17:07Z re-provisioning could not move: `/opt/blitzy-harness/provision-log/rulesets-feeds.txt` still records this tool as holding **no local database** and querying `https://api.osv.dev` live at scan time, which is a second witness to the runner's own statement rather than a second measurement. There is no count to compare, no artifact having been written |
 | Reproducibility gap | **NAMED.** This tool holds no local database and no recorded digest for the data it would consult, so its counts are not reproducible from anything on disk: an identical re-run against an API whose contents have moved can legitimately produce a different number. Disclosed rather than repaired — no local mirror was seeded and no digest was invented. Its effect on this run is nil, because no query was made; it is disclosed anyway so that a reader knows this tool's count has no on-disk provenance behind it |
 | Feed state | **not attempted.** It resolved no package, so it had nothing to ask the API about — `0 Extract calls` in its own words. Of the four outcomes this is the third. No query, no response, no rate-limit notice and no network error appears in either captured stream |
 | Exit code | **128**, expected 128 — as expected. The tool's own code, passed through unchanged by the runner at line 58. Exit 128 with zero resolvable packages is this tool's documented long-standing behaviour: **not a crash and not a failure** |
@@ -1065,7 +1118,7 @@ the record.
 | Parse status | **absent** |
 | Records parsed / rejected | not applicable — no artifact to traverse. Neither figure is set, and neither is written as zero |
 | Reconciliation, per artifact | **`not applicable — artifact absent`**. This is the literal recorded value and its status is `not_applicable`. It is **not** a zero-equals-zero pass: no artifact was written, so there is nothing to traverse and no identity to assert |
-| Reconciliation, dataset level | contributes nothing to `10016 = 9430 + 586`; it is the one of the nine artifacts counted as absent (`normalize-run.json` `reconciliation.stage_b`, `artifacts_total` 9, `artifacts_present` 8, `artifacts_absent` 1) rather than a term in the sum |
+| Reconciliation, dataset level | contributes nothing to `10013 = 9427 + 586`; it is the one of the nine artifacts counted as absent (`normalize-run.json` `reconciliation.stage_b`, `artifacts_total` 9, `artifacts_present` 8, `artifacts_absent` 1) rather than a term in the sum |
 | Row validation | not applicable — zero rows in `findings.json` and zero in `findings.csv` |
 | Adapter fixture | **not applicable** — no artifact, so no adapter, no fixture and no test module. The absent case is covered synthetically by `test_reconciliation`, which asserts the `not applicable — artifact absent` sentinel |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved indirectly through `scope_resolve_target` at runner line 34 |
@@ -1219,9 +1272,9 @@ reported what it found. Nothing here reads its zero as evidence about the tool.
 | --- | --- |
 | Version | observed **13.0.0**, expected 13.0.0 — as expected. `$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh --version` printed `dependency-check-cli version 13.0.0` (exit 0), re-measured in the checkout, and the artifact's own `scanInfo.engineVersion` reads 13.0.0 |
 | Packaging channel | observed **GitHub release, repository `dependency-check/DependencyCheck`, tag `v13.0.0`**, archive sha256 `44d920d1ec03e948df862a253f0912782a31b9beee8a7c8895b9cb95760176ed` — the inherited provisioning record's own measurement, `harness/ENVIRONMENT.md` line 82, which is the file that owns it and is present in this checkout. Recorded as observed rather than as expected: the expected attribution is `jeremylong/DependencyCheck`, which returns 404 for that tag because the project moved. **A Maven Central channel was not observed for this provisioning and is not recorded as one.** Both attributions stand; the version itself matches, so nothing halts |
-| Feed identity | observed **keyless NIST NVD JSON 2.0 datafeed at `/opt/blitzy-harness/dc-data`, `NVD API Last Modified 2026-08-30T12:00:19-04`**; expected **keyless NVD datafeed, 2026-08-23T08:00:06-04** — **DIFFERS by seven days**. The inherited environment record states a third value, 2026-08-24T08:00:04-04 over a 239 MB database. All three are keyless NIST JSON 2.0 datafeeds, and every value is recorded |
-| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** A different feed produces a different count for reasons that have nothing to do with the code. The gate records the same difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
-| Feed identity provenance | Measured at the gate from the database file itself and the provisioning log's own text: `$HARNESS_DC_DATA_DIR/odc.mv.db` at **260,005,888 bytes written 2026-08-30T17:48Z**, alongside `jsrepository.json` 549,021 B and `publishedSuppressions.xml` 84,781 B, with the log recording `NVD API Last Modified 2026-08-30T12:00:19-04` (`gate-record.json` check `gate.feed_identity.dependency-check`, `stdout` and `observed`). The gate also records why the identity is taken that way rather than from a `dependency_check_nvd:` grep: this provisioning's log states the field in a different layout, so the grep returns nothing. Corroborated from the other direction by the artifact's own `scanInfo.dataSource` block, the tool stating the identity of the data it used |
+| Feed identity | **Read by this invocation**: keyless NIST NVD JSON 2.0 datafeed at `/opt/blitzy-harness/dc-data`, `NVD API Last Modified 2026-08-30T12:00:19-04`. Expected by the request's table: **keyless NVD datafeed, 2026-08-23T08:00:06-04** — **DIFFERS by seven days**. Stated by the inherited environment record: a third value, 2026-08-24T08:00:04-04 over a 239 MB database. **Live in the seeded datafeed today, after the 2026-09-03T01:17:07Z re-provisioning and read by no invocation in this run**: `NVD API Last Modified 2026-09-02T20:00:09-04`, seeded in 976,188 ms, `odc.mv.db` 248,520,704 bytes — stated by `/opt/blitzy-harness/provision-log/rulesets-feeds.txt`. All four are keyless NIST JSON 2.0 datafeeds, every value is recorded, and none is reconciled into another. This artifact was **not** re-run in this checkpoint, so its zero vulnerability records derive from the 2026-08-30 datafeed |
+| Comparability | **NOT COMPARABLE WITH THE REHEARSAL**, and now on two grounds: the feed this invocation read is not the feed the table anchors, and the datafeed at that path is no longer the one it read either — the re-provisioning advanced it to 2026-09-02T20:00:09-04. A different feed produces a different count for reasons that have nothing to do with the code. The gate records the read-versus-expected difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
+| Feed identity provenance | Measured at the gate from the database file itself and the provisioning log's own text: `$HARNESS_DC_DATA_DIR/odc.mv.db` at **260,005,888 bytes written 2026-08-30T17:48Z**, alongside `jsrepository.json` 549,021 B and `publishedSuppressions.xml` 84,781 B, with the log recording `NVD API Last Modified 2026-08-30T12:00:19-04` (`gate-record.json` check `gate.feed_identity.dependency-check`, `stdout` and `observed`). The gate also records why the identity is taken that way rather than from a `dependency_check_nvd:` grep: this provisioning's log states the field in a different layout, so the grep returns nothing. Corroborated from the other direction by the artifact's own `scanInfo.dataSource` block, the tool stating the identity of the data it used. All of those readings are of the datafeed **as it then stood**: the file at that path is now 248,520,704 bytes at the 2026-09-02 timestamp recorded in the row above, so the figures here are this invocation's provenance rather than a description of the datafeed today |
 | Feed state | **not attempted.** The runner passes `--noupdate`, so no refresh was attempted and the seeded datafeed was used exactly as found. Of the four outcomes — attempted and succeeded, attempted and failed, not attempted, not reported — this is the third. The feed's files were unchanged by the invocation, all of them written 2026-08-30T17:48Z and predating this run's start, so there was no scan-time fetch and this tool contributes no reproducibility gap of that kind |
 | Exit code | **0**, expected 0 — as expected. The tool's own status, captured at runner line 58. No `--failOnCVSS` is passed, so the code reflects the run rather than a policy |
 | Elapsed | expected **6 s**, observed **7 s** — recorded, both values. `dependency-check.status` `elapsed_seconds=7`; the lane ledger measures the same window as **6.372 s**, 2026-09-01T14:25:03Z to 14:25:10Z. The tool's own phase timings agree — `Created CPE Index (1 seconds)`, `Finished RetireJS Analyzer (1 seconds)`, `Analysis Complete (3 seconds)`. No time limit applies and elapsed time is a fact rather than a budget |
@@ -1230,7 +1283,7 @@ reported what it found. Nothing here reads its zero as evidence about the tool.
 | Parse status | **clean** |
 | Records parsed / rejected | 0 parsed, **0 rejected**. There was nothing to parse under the count unit — `normalize-run.json` `artifacts[dependency-check].counters` records 32 `dependencies` of which **32 carry no `vulnerabilities` array at all** — so no rejection class engaged and no parser error was raised |
 | Reconciliation, per artifact | `0 = 0 + 0` — **pass**. A real zero with the artifact **present**, deliberately not the `not applicable — artifact absent` case |
-| Reconciliation, dataset level | contributes a zero term to `10016 = 9430 + 586` — **pass** |
+| Reconciliation, dataset level | contributes a zero term to `10013 = 9427 + 586` — **pass** |
 | Row validation | not applicable in substance — this tool emitted zero rows, and the dataset-level validation passed with zero rows attributed to it |
 | Adapter fixture | **module passes, and the one AAP requirement over it is now SATISFIED — by a second capture rather than by a waiver.** `test_dependency_check_adapter` ran 107 tests, exit 0, result OK, per-adapter `verdict` `pass`, and `adapter-tests-run.json` `positive_mapping.per_adapter.dependency-check.aap_0_6_2_captured_positive_mapping_requirement.status` is **`SATISFIED`** with `status_superseded_value` `FAILED` retained beside it. The measurement that made it FAILED stands and is why the second capture was needed: this tool's whole output for this run holds **32 dependencies, zero vulnerability records and zero package objects**, so no unmodified excerpt of it exercises a single positive field, and its captured fixture yields **zero rows**. A second invocation of the same tool build, same JDK 17, same seeded feed, over input that resolves to packages the feed carries advisories for produced **five vulnerability records over two dependencies**, retained unmodified at `harness/artifacts/logs/dependency-check-positive-capture.json` with its command in the accompanying `.log`, copied byte-for-byte to `oss-scan-results/adapter-tests/fixtures/captured-dependency-check-vulnerabilities.json`, and asserted field by field by `CapturedVulnerabilityFixtureTest`. It contributes **no dataset row**, having been taken outside `harness/artifacts/raw/` over input that is not the pinned tree |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` |
@@ -1352,16 +1405,22 @@ Lifting it takes a provisioning decision this run may not take: seed the datafee
 at the expected timestamp and re-execute, or accept the difference in writing with
 both values on the record. Until one of those is taken, the mark stands. If the
 choice is to re-seed, the cost is the re-provisioning plus one serialized
-nine-runner lane, whose floor is the sum of the nine recorded elapsed times —
-**3,104 s (51 m 44 s)**, from
-1407 + 535 + 57 + 14 + 93 + 17 + 0 + 7 + 974 = 3,104 s, each addend read from that
+nine-runner lane, whose floor is the sum of the nine `.status` trailers' recorded
+elapsed times as they stand today — **2,726 s (45 m 26 s)**, from
+1407 + 535 + 57 + 14 + 93 + 17 + 0 + 7 + 596 = 2,726 s, each addend read from that
 tool's own `.status` `elapsed_seconds` field — and, because a fresh
 Dependency-Check report carries a fresh `reportDate` and a fresher feed, the
-regeneration of every figure in every document that cites this tool.
-`runner-sequence.json` measures those same nine windows more finely, at
+regeneration of every figure in every document that cites this tool. **Those nine
+trailers are not nine windows of one lane any more**, and the sum is stated as a floor
+for a future lane rather than as one lane's duration: eight of them are the 2026-09-01
+lane's and the ninth, `joern`'s 596, is the 2026-09-03 re-invocation's.
+`runner-sequence.json` measures the **2026-09-01 lane's** own nine windows more finely,
+at
 1407.786 + 535.569 + 56.25 + 14.451 + 93.009 + 16.624 + 0.507 + 6.372 + 974.22 =
-3,104.788 s: one lane read at two resolutions, whole seconds by construction in
-the trailers and sub-second in the ledger, and not a second lane.
+3,104.788 s, and that ledger figure stands unchanged as that lane's total, its `joern`
+term being the superseded 974.22 s rather than today's trailer. So the two sums are two
+different populations read at two resolutions — whole seconds in the trailers,
+sub-second in the ledger — and neither is a second measurement of the other.
 
 **JDK assignment, recorded as read.** A reader expecting 21 for this tool would be
 wrong for this provisioning, and a reader expecting 17 for every non-Joern tool
@@ -1503,34 +1562,38 @@ is the code-property graph rather than a directory tree.
 | Comparability | **comparable** — the observed query-set identity is the expected one |
 | Feed state | **not applicable — there is no feed and no ruleset fetch**, so none of the four outcomes applies. `fetched_at_scan_time: false`; no reproducibility gap of that kind |
 | Exit code | **0**, expected 0 — as expected. The tool's own code, untransformed by the runner. **Exit 78 was not observed**: had the runner's graph guard fired (lines 44–48, via `scope_fail`) it would have named the missing graph on stderr, which is a configuration fault to correct at the gate rather than an unexplained missing artifact |
-| Elapsed | expected **734 s**, observed **974 s** — recorded, both values. `joern.status` `elapsed_seconds=974`; the lane ledger measures the same window as **974.22 s**, 2026-09-01T14:25:10Z to 14:41:24Z |
-| Finding count | expected **692**, observed **693** — recorded, both values. Count unit: one element of the artifact's `findings` array. Per query, as the runner printed them into `joern.stdout.log`: `joern-process-exec` 55, `joern-unsafe-deserialization` 178, `joern-reflection-forname` 413, `joern-message-digest` 23, `joern-cipher-getinstance` 11, `joern-xml-factory` 13 — and 55 + 178 + 413 + 23 + 11 + 13 = 693, which the runner's own closing line confirms: `wrote 693 findings to …/harness/artifacts/raw/joern.json`. The single record above the expected figure comes from `joern-reflection-forname`, 413 against the rehearsal's 412; nothing is trimmed to bring the count inside a window |
+| Elapsed | expected **734 s**, observed **596 s** — recorded, both values. `joern.status` `elapsed_seconds=596` from the runner's own whole-second timer; the finer measurement of the same window is **596.83 s**, 2026-09-03T09:07:47Z to 09:17:43Z, from `runner-metadata.json` `tools.joern.stage3_invocation_2026_09_03.invocation`. No time limit applies and neither figure is read as fast or slow. The superseded 2026-09-01 invocation measured **974 s** / 974.22 s over 14:25:10Z to 14:41:24Z against the same expected 734 s; both stand on the record with their provenance |
+| Finding count | expected **692**, observed **690** — recorded, both values. Count unit: one element of the artifact's `findings` array. Per query, as the runner printed them into `joern.stdout.log`: `joern-process-exec` 55, `joern-unsafe-deserialization` 178, `joern-reflection-forname` 411, `joern-message-digest` 23, `joern-cipher-getinstance` 10, `joern-xml-factory` 13 — and 55 + 178 + 411 + 23 + 10 + 13 = 690, which the runner's own closing line confirms: `wrote 690 findings to …/harness/artifacts/raw/joern.json`. The two records below the expected figure are `joern-reflection-forname` at 411 against the rehearsal's 412 and `joern-cipher-getinstance` at 10 against its 11; the other four queries return exactly what the rehearsal recorded. The query set, its bound and the envelope shape are identical across the two invocations, so the difference is the graph rather than the runner — this graph carries 2,065 more methods and 139 more type declarations than the one the superseded 693 came from (`runner-metadata.json` `tools.joern.stage3_invocation_2026_09_03`, field `artifact.comparison_with_the_superseded_generation`). Nothing is trimmed to bring the count inside a window, and the count is a fact rather than a target |
 | Traversal bound | 2,000 per query (`HARNESS_JOERN_QUERY_BOUND`, defaulted at runner line 36). **`bound_reached=false` for all six.** The bound limits traversal work, never the files or modules in scope |
-| Output format | native JSON with a `findings` array; envelope keys `tool`, `tool_version`, `cpg`, `graph`, `query_set`, `queries`, `findings`. Artifact `harness/artifacts/raw/joern.json`, **354,817 bytes**, sha256 `bb73a8c657fd31ddf31dc8081f248103e42e2db4fb1b000cca447682c43d8014` |
+| Output format | native JSON with a `findings` array; envelope keys `tool`, `tool_version`, `cpg`, `graph`, `query_set`, `queries`, `findings`. Artifact `harness/artifacts/raw/joern.json`, **353,048 bytes**, sha256 `f7f5f60e37aacdbf58ca2bf073c0682efeb81e256a516576b12d55aea8edc926`, which `joern.status` `artifact_bytes` and `normalize-run.json` `artifacts[joern].artifact` measure identically. The envelope's own `graph` block reads `methods` 1398964, `type_declarations` 119860 and `files` 45037 — the counts of the graph now on disk. The superseded 2026-09-01 artifact was **354,817 bytes**, sha256 `bb73a8c657fd31ddf31dc8081f248103e42e2db4fb1b000cca447682c43d8014`, and carried the superseded 1,396,899 / 119,721 / 45,037; it is not the file at that path |
 | Parse status | **partial** |
-| Records parsed / rejected | **107 emitted, 586 rejected**, all 586 under the single class **`unresolvable_path`**. **No parser error was raised** — the artifact parses as JSON in full, and the rejections are per-record path-resolution outcomes rather than a parse fault, so there is no parser error text to retain |
-| Reconciliation, per artifact | `693 = 107 + 586` — **pass** (`normalize-run.json` `reconciliation.stage_a`) |
-| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass**; every rejected record in the whole dataset is one of these 586, and it is the only artifact of the nine whose parse status is `partial` |
-| Row validation | pass over this tool's 107 rows. 78 take `in_scope: true` and **29 take `in_scope: false` and are kept**, being source coordinates that resolve outside the twelve globs (`common/utils` 14, `common/unsafe` 6, `launcher/src` 4, `common/utils-java` 3, `streaming/src` 2). **No row resolved into a `src/test` tree** — the counter reads 0 |
+| Records parsed / rejected | **104 emitted, 586 rejected**, all 586 under the single class **`unresolvable_path`**. **No parser error was raised** — the artifact parses as JSON in full, and the rejections are per-record path-resolution outcomes rather than a parse fault, so there is no parser error text to retain |
+| Reconciliation, per artifact | `690 = 104 + 586` — **pass** (`normalize-run.json` `reconciliation.stage_a`) |
+| Reconciliation, dataset level | contributes to `10013 = 9427 + 586` — **pass**; every rejected record in the whole dataset is one of these 586, and it is the only artifact of the nine whose parse status is `partial` |
+| Row validation | pass over this tool's 104 rows. 75 take `in_scope: true` and **29 take `in_scope: false` and are kept**, being source coordinates that resolve outside the twelve globs (`common/utils` 14, `common/unsafe` 6, `launcher/src` 4, `common/utils-java` 3, `streaming/src` 2). **No row resolved into a `src/test` tree** — the counter reads 0 |
 | Adapter fixture | **pass** — `test_joern_adapter`, 117 tests, exit 0, result OK, per-adapter `verdict` `pass`. One AAP case this artifact **cannot supply** is recorded rather than glossed: AAP 0.5.4 and 0.6.1 require a fixture asserting that a finding resolving into a `src/test` tree is retained with `in_scope: false` rather than dropped, and **no finding in this artifact names a `Suite` or `Test` class**, so none resolves into `src/test` and the case cannot be captured — which `normalize-run.json` corroborates from the other direction with `rows_from_src_test: 0`. It is exercised on `oss-scan-results/adapter-tests/fixtures/derived-joern-features.json`, declared derived in its own expected file, and the derivation is recorded rather than presented as a capture |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved and verified. The scanned **input**, however, is the graph, passed through `HARNESS_CPG` |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | one invocation. No filesystem target appears on the command line: the graph path, the output path and the bound are passed through the environment and the script through `--script` |
-| Working directory | `/tmp/blitzy-harness-scratch/13/joern-run`, recorded verbatim by this invocation as `workspace : /tmp/blitzy-harness-scratch/13/joern-run (outside the repository; joern writes ./workspace)` in `harness/artifacts/logs/joern.runner-console.log`. The runner expresses it as `cd "$WORKDIR"` at `harness/bin/run-joern.sh` line 149 over `$HARNESS_SCRATCH_DIR/joern-run`, and `harness/env.sh` line 38 derives `HARNESS_SCRATCH_DIR` as `/tmp/blitzy-harness-scratch/${BLITZY_CLONE_INDEX:-0}` — this lane's clone index is **13**, so the console's value is the one of record. It is **the one runner whose working directory is not the scan root**, deliberately: this tool exposes no workspace flag and writes its workspace into whatever directory it runs from, so the runner works in the per-clone scratch directory and never in the repository |
-| Path base | **bytecode class**, with **no value** — no filesystem base exists for this tool's records, and none was invented. The emitted `file` field is the frontend's ephemeral `/tmp/jimple2cpg-<id>/<pkg>/<Class>.class` extraction path and can never be a path in the Spark tree, so the `class` field is the only resolvable coordinate — `coordinate_from_class` is **693 of 693** records and `coordinate_from_class_file` is 0. Resolution is against `src/main` **and** `src/test` under the pinned root, taken only where unique: it succeeded for 107 records (`resolution_from_class` 107) and the other 586 were rejected |
+| Working directory | `/tmp/blitzy-harness-scratch/424/joern-run`, this run's clone index being **424** (`runner-metadata.json` `tools.joern.stage3_invocation_2026_09_03`, field `invocation.working_directory_of_the_joern_process`), and corroborated from inside the process itself by `harness/artifacts/logs/joern.stderr.log` line 6, which names its working copy `/tmp/blitzy-harness-scratch/424/joern-run/workspace/spark.cpg/cpg.bin.tmp`. The runner assigns the directory at `harness/bin/run-joern.sh` line 53 and enters it with `cd "$WORKDIR"` at line 65, over `$HARNESS_SCRATCH_DIR/joern-run`, and `harness/env.sh` line 38 derives `HARNESS_SCRATCH_DIR` as `/tmp/blitzy-harness-scratch/${BLITZY_CLONE_INDEX:-0}`. The superseded 2026-09-01 invocation ran in `/tmp/blitzy-harness-scratch/13/joern-run` under clone index 13, which is the value its own console still carries and which no longer describes this entry. It is **the one runner whose working directory is not the scan root**, deliberately: this tool exposes no workspace flag and writes its workspace into whatever directory it runs from, so the runner works in the per-clone scratch directory and never in the repository |
+| Path base | **bytecode class**, with **no value** — no filesystem base exists for this tool's records, and none was invented. The emitted `file` field is the frontend's ephemeral `/tmp/jimple2cpg-<id>/<pkg>/<Class>.class` extraction path and can never be a path in the Spark tree, so the `class` field is the only resolvable coordinate — `coordinate_from_class` is **690 of 690** records and `coordinate_from_class_file` is 0. Resolution is against `src/main` **and** `src/test` under the pinned root, taken only where unique: it succeeded for 104 records (`resolution_from_class` 104) and the other 586 were rejected |
 | JDK major | **21** — `/opt/blitzy-tools/jdk/jdk-21.0.12.1+1`, `openjdk version "21.0.12.1" 2026-08-18 LTS`, VM `21.0.12.1+1-LTS`, matching the expected Temurin build with no patch difference to record. Taken from `java.specification.version` — the JVM's own property output — rather than off a banner. Two independent pins agree: the runner sets `JAVA_HOME="$JAVA_HOME_21"` and asserts that JDK usable before invoking, and the `joern` launcher on `PATH` is a provisioning wrapper that pins the same JDK. A wrong major here halts the run; a patch difference with the correct major is recorded with both values |
 | Interpreter | none — the runner invokes no Python interpreter |
 | Credential expression | **none.** This runner reads no credential and calls `scope_cred_state` nowhere |
 
-**Baked flags, as read** at scan time from `harness/bin/run-joern.sh` lines 67–71 — the
-lines that carried the invocation then; the same block sits at lines 151–158 in the
-corrected runner, and the delta is named below:
-`--script harness/lib/joern-scan.sc`, `-J-Xmx"$HARNESS_JOERN_HEAP"`, and stdin
+**Baked flags, as read** from `harness/bin/run-joern.sh` lines 67–71, the lines that
+carry the invocation in the runner as provisioned and as it stood for the invocation of
+record: `--script harness/lib/joern-scan.sc`, `-J-Xmx"$HARNESS_JOERN_HEAP"`, and stdin
 redirected from `/dev/null`. `SL_LOGGING_LEVEL` is set to `WARN`, because the
 default level floods the artifact. None of these is an anchor. **Both files named
 in that sentence — the runner and the script it invokes — are present in this
 checkout and readable**, so the reading above is re-derivable rather than taken on
-trust. The invocation **as it ran**, verbatim:
+trust, and both are byte-identical to their provisioned bytes: `harness/bin/run-joern.sh`
+at 3,380 bytes, sha256 `32dd647af10709b72d159d67a2b15bd6f1f258af97614a9d2bf577c7a1abe65f`, 76
+lines, and `harness/lib/joern-scan.sc` at 5,401 bytes, sha256
+`cf7a3622a0635db3932b414427ff1b4b416b6050a024ea37651d5d89b91c0fa4`, 122 lines
+(`runner-metadata.json` `tools.joern.runner_script_identity`). The invocation
+**as it ran**, verbatim:
 
 ```
 JAVA_HOME="$JAVA_HOME_21" SL_LOGGING_LEVEL="${SL_LOGGING_LEVEL:-WARN}" \
@@ -1540,32 +1603,41 @@ JAVA_HOME="$JAVA_HOME_21" SL_LOGGING_LEVEL="${SL_LOGGING_LEVEL:-WARN}" \
     < /dev/null > "$OUT" 2> "$ERR"
 ```
 
-The **corrected** runner carries this instead, at lines 151–158:
+**What this run set around that invocation, and why it is not a runner change.** Two
+environment values were exported into it and nothing else:
+`JAVA_TOOL_OPTIONS=-Xmx64g`, which is what the forked child JVM inherits, and
+`BLITZY_CLONE_INDEX=424`, which selects this clone's private scratch so the ~800 MB
+`./workspace` Joern writes cannot collide with a sibling's. Both are values the runner
+is written to consume, which AAP 0.6.5 sanctions as a runtime value rather than a
+configuration edit; the runner's own file and its baked flags were not touched
+(`runner-metadata.json` `tools.joern.stage3_invocation_2026_09_03`, field
+`invocation.environment_set_by_this_run`, with its `environment_rationale`).
 
-```
-JAVA_HOME="$JAVA_HOME_21" SL_LOGGING_LEVEL="${SL_LOGGING_LEVEL:-WARN}" \
-  JAVA_TOOL_OPTIONS="$CHILD_JAVA_TOOL_OPTIONS" \
-  HARNESS_SCAN_CPG="$CPG_REAL" HARNESS_SCAN_OUT="$ART" HARNESS_SCAN_BOUND="$BOUND" \
-  HARNESS_SCAN_HEAP_FLOOR_BYTES="$HEAP_FLOOR_BYTES" \
-  HARNESS_SCAN_HEAP_RECORD="$HEAP_RECORD" \
-  joern --script "$SCRIPT" \
-    -J-Xmx"$HARNESS_JOERN_HEAP" \
-    < /dev/null > "$OUT" 2> "$ERR"
-```
-
-**The delta is three environment assignments and nothing else** — `JAVA_TOOL_OPTIONS`,
-`HARNESS_SCAN_HEAP_FLOOR_BYTES` and `HARNESS_SCAN_HEAP_RECORD`, added 2026-09-02 so the
-child JVM that holds the graph inherits the floor-checked heap and measures itself against
-the floor. No flag was added, removed or altered, no query changed and the bound is
-unchanged, which is why the two invocations remain comparable. `harness/bin/run-joern.sh`
-line 157 is the `-J-Xmx` site in the corrected runner (line 70 in the invocation of record),
-and `harness/lib/joern-scan.sc` lines 1–6 describe the baked set as six structural queries
-in the script's own words — those lines are byte-identical across the correction. The same
-facts are held structurally by `runner-metadata.json`
-`tools.joern.invocation_form.literal`, which carries the **corrected** eight-line form and
-whose `source_lines` field reads `harness/bin/run-joern.sh lines 151-158`, equalling the
-second block above token for token, with `literal_change_2026_09_02` naming the delta; and
-by `tools.joern.baked_flags`. **The `.status` trailer is not a source
+**A 2026-09-02 edit to this runner is superseded and was reverted, so the eight-line
+form an earlier generation of this entry published no longer describes anything on
+disk.** That edit added `JAVA_TOOL_OPTIONS="$CHILD_JAVA_TOOL_OPTIONS"`,
+`HARNESS_SCAN_HEAP_FLOOR_BYTES="$HEAP_FLOOR_BYTES"` and
+`HARNESS_SCAN_HEAP_RECORD="$HEAP_RECORD"` to the invocation, an in-runner heap-floor
+proof block, an in-runner pre-load identity gate and a post-hoc artifact-withdrawal
+branch, taking the file to 13,323 bytes over 211 lines. AAP 0.6.1 lists every entry in
+`harness/bin/` as REFERENCE and AAP 0.8.1 states that no runner file is edited, so on
+2026-09-03 both files were reverted to the provisioned bytes named above and
+`git diff a64216aed7f -- harness/bin/run-joern.sh harness/lib/joern-scan.sc` prints
+nothing. Every locator that generation cited into the corrected script named one of six
+constructs — the eight-line invocation, its `-J-Xmx` site, the heap-floor proof block, the
+`CHILD_JAVA_TOOL_OPTIONS` assembly, the in-runner identity gate and the artifact-withdrawal
+branch — and **not one of those constructs exists in the 76-line provisioned file**, so
+every such locator is recorded here as superseded rather than re-pointed to a line that
+happens to be in range. The controls themselves are not lost; where each lives now is
+stated below, and the withdrawal branch is the one that has no successor anywhere. `harness/lib/joern-scan.sc` lines 1–6 describe the
+baked set as six structural queries in the script's own words, and line 111 labels its own
+output `6 bounded structural queries`; those lines are unchanged across the revert.
+The same facts are held structurally by `runner-metadata.json`
+`tools.joern.baked_flags`, whose `source_lines` field reads
+`harness/bin/run-joern.sh lines 67-71`. That node's sibling
+`tools.joern.invocation_form.literal` still carries the superseded eight-line form and
+says so in its own `literal_change_2026_09_02` field; the five-line block above is the
+one that ran. **The `.status` trailer is not a source
 for any of this** and is not cited as one: like the other eight it is seven lines
 carrying only `tool`, `exit_code`, `elapsed_seconds`, `artifact`,
 `artifact_bytes`, `scan_root` and `scan_root_source`, so it holds no command, no
@@ -1576,52 +1648,93 @@ which is why that quotation is recorded here as history and the runner itself is
 cited in its place. Reading the runner is not editing it: AAP 0.8.1 forbids
 editing a runner or a baked flag, and nothing here was edited.
 
-**Heap actually used: two JVMs, and the invocation of record met the 64 GB minimum on
-only one of them.** `joern --script` starts a parent `ReplBridge` JVM and forks a child
+**Heap actually used: two JVMs, and this invocation met the 64 GB minimum on both.**
+`joern --script` starts a parent `ReplBridge` JVM and forks a child
 `replpp.scripting.NonForkingScriptRunner`, and it is the **child** that runs `importCpg`
 and every query — so the child is the JVM AAP 0.8.2's minimum is about. `-J-Xmx` is a
-launcher flag and reaches the parent only; the launcher does not forward it. **Measured
-on both processes**: parent `MaxHeapSize` **68,719,476,736** (64 GB, as `-J-Xmx64g`) but
-child `MaxHeapSize` **32,178,700,288** — 29.97 GiB, the JDK's default ergonomic
-quarter-of-RAM on this 3.75 TiB host — while the runner printed `heap : 64g` into its own
-stream, a line that described the launcher and said nothing about the JVM holding the
-graph. The mechanism was `HARNESS_JOERN_HEAP`, the runner's own documented environment
-override applied at `harness/bin/run-joern.sh` line 70 in the runner of record.
+launcher flag and reaches the parent only; the launcher does not forward it, which is why
+the runner's single `heap            : 64g` line describes the launcher and says nothing
+about the JVM holding the graph. `JAVA_TOOL_OPTIONS` is what the child inherits, and that
+inheritance is visible in the child's own stream: `harness/artifacts/logs/joern.stderr.log`
+lines 1–2 read `Picked up JAVA_TOOL_OPTIONS: -Xmx64g`, once per JVM. **Measured externally
+rather than requested**: a `jcmd` sampler ran beside the invocation at a 5 s cadence over
+the two observed pids, reading each JVM's `/proc/<pid>/environ`, `VM.flags` and
+`GC.heap_info`, and observing only — it started and killed nothing. The child's
+`-XX:MaxHeapSize` was **68,719,476,736** bytes with `-XX:SoftMaxHeapSize`
+68,719,476,736 and `-XX:InitialHeapSize` 2,147,483,648, on Temurin 21.0.12.1+1, at a peak
+G1 heap of 67,076,096K committed with 53,751,346K used, and `JAVA_TOOL_OPTIONS=-Xmx64g`
+was present in the child's environ (`runner-metadata.json`
+`tools.joern.stage3_invocation_2026_09_03`, field `child_jvm_measured_externally`). That
+measurement, not the request, is what is recorded.
 
-**Corrected 2026-09-02, and now 68,719,476,736 bytes on both.** `harness/bin/run-joern.sh`
-floor-checks `HARNESS_JOERN_HEAP` against 68,719,476,736 bytes at its lines 77–89 and exits
-78 before anything is loaded if the value is unparsable or below it. `harness/bin/run-joern.sh`
-line 95 appends `-Xmx"$HARNESS_JOERN_HEAP"` **last** to the child's `JAVA_TOOL_OPTIONS` so
-the child inherits it, the last `-Xmx` in that string being the one the JVM applies — a
-caller may therefore raise the heap and cannot lower it. `harness/lib/joern-scan.sc` lines
-92–102 measure `Runtime.getRuntime.maxMemory()` inside the child before `importCpg`, and
-`harness/bin/run-joern.sh` lines 166–208 read that measurement back and **replace the exit
-code with 78 and remove the artifact** if it is absent, unparsable or below the floor.
-Re-verified with the JDK 21 `jcmd VM.flags`
-on both processes and by the child's own record.
+**Where the floor is enforced, stated plainly because the alternative reading is that a
+control exists where none does.** **Nothing inside either provisioned file enforces a
+heap floor.** The runner passes `-J-Xmx"$HARNESS_JOERN_HEAP"` at
+`harness/bin/run-joern.sh` line 70, which sizes the launcher; the script parses no heap
+and asserts no floor. So the floor is enforced by this run in two places **outside** the
+runner, both of which this checkout holds: the environment override
+`JAVA_TOOL_OPTIONS=-Xmx64g`, which the child does inherit and whose effect on the child
+was measured with `jcmd` as recorded above; and
+`harness/lib/preflight_graph_identity.py`, which carries a first-class method-count floor
+of 853,420 as the module constant `METHOD_COUNT_FLOOR` at its line 331 and adjudicates the
+graph against it before any load, publishing the verdict to
+`harness/artifacts/logs/joern-preflight.log`. Identity and completeness are different
+facts, which is why that gate checks both. **And nothing in this configuration can
+withdraw an artifact after the fact.** An earlier generation of this entry described the
+runner replacing its own exit code with 78 and removing the artifact on a sub-floor child
+heap; that branch was part of the reverted edit and no such control exists — the runner
+calls `scope_finish` and exits with the tool's own code, and no in-runner check can undo
+an artifact once written. The corresponding pre-load refusal likewise lives outside the
+runner: `harness/lib/run-joern-gated.sh` has no branch reaching the runner after a
+non-zero gate status, and the run of record published the gate's report immediately before
+the load. A direct `./harness/bin/run-<tool>.sh` invocation is not bound by either, which
+`harness/artifacts/logs/joern-preflight.log` states in its own words at its lines 22–26.
 
-**Two log members the corrected runner adds, and why neither appears in this
-generation's log tree.** It now writes `$HARNESS_LOG_DIR/joern.preload-identity.log` (the
-pre-load identity gate's full report) and `$HARNESS_LOG_DIR/joern.child-jvm.json` (the heap
-the child measured of itself: `heap_max_bytes`, `heap_floor_bytes`, `at_or_above_floor`,
-`jvm_memory_stack_args`, `jdk_major`, `vm_version`). **Neither is in
-`harness/artifacts/logs/` and neither is claimed to be**: the invocation of record ran the
-runner as it then stood, and the only runs that have produced them were given a redirected
-`HARNESS_LOG_DIR` inside private scratch precisely so no canonical artifact, stream or
-status file could be overwritten. They are named here as a property of the corrected
-runner, not as delivered files — publishing manifest entries for files this checkout does
-not hold would be inventing evidence. Both are separate files by design: `scope_finish`
-still writes exactly seven `key=value` lines and **no field was added to any `.status`
-file**, so the trailer shape every citation depends on is unchanged.
+**The superseded generation's heap measurement, retained.** The 2026-09-01 invocation was
+measured at a parent `MaxHeapSize` of 68,719,476,736 and a **child** `MaxHeapSize` of
+**32,178,700,288** — 29.97 GiB, the JDK's default ergonomic quarter-of-RAM on this 3.75 TiB
+host — because `-J-Xmx` never reached the child and no `JAVA_TOOL_OPTIONS` was exported for
+it. Its 693 findings were compared element for element against a re-run at a measured 64 GB
+child heap and were identical once `elapsed_ms` was normalised, so the sub-floor child heap
+truncated nothing at that graph's size; the defect was that nothing would have detected
+truncation had it occurred. Both figures stay on the record with their provenance, and the
+invocation of record above is the one at 68,719,476,736 on both JVMs.
 
-**The artifact in this entry was not rebuilt**: its 693 findings were compared element for element against a re-run at a
-measured 64 GB child heap and are identical, byte-identical once `elapsed_ms` is
-normalised — so the sub-floor child heap **truncated nothing** at this graph's size, every
-figure in this entry stands, and the defect was that nothing would have detected truncation
-had it occurred. `run-record.md` **D25** records the runner edit as a disclosed divergence.
+**Two log members a superseded runner edit would have added, withdrawn on 2026-09-03.**
+An earlier generation of this entry named `$HARNESS_LOG_DIR/joern.preload-identity.log`
+(the pre-load identity gate's full report) and `$HARNESS_LOG_DIR/joern.child-jvm.json`
+(the heap the child measured of itself) as members the corrected runner writes. Both were
+properties of the 2026-09-02 edit, and that edit was reverted, so **nothing on disk can
+produce either file and neither is claimed as delivered evidence**
+(`runner-metadata.json` `tools.joern.side_artifacts`, field
+`two_members_a_2026_09_02_runner_edit_would_have_added_withdrawn_on_2026_09_03`). The
+restored runner writes exactly what it always wrote: the artifact, the stdout stream, the
+stderr stream and the seven-line `.status` trailer from `scope_finish`. **No evidence was
+lost in the revert — it moved to files this checkout does hold**: the pre-load identity
+comparison is published by `harness/lib/preflight_graph_identity.py` to
+`harness/artifacts/logs/joern-preflight.log`, and the child JVM's own heap was measured
+externally with `jcmd` and recorded in `harness/artifacts/logs/runner-metadata.json`.
+`scope_finish` still writes exactly seven `key=value` lines and **no field was added to
+any `.status` file**, so the trailer shape every citation depends on is unchanged.
+
+**The artifact in this entry was rebuilt on 2026-09-03, deliberately, and that is why
+every figure above is the new measurement.** Provisioning re-provisioned the host at
+2026-09-03T01:17:07Z and rebuilt the graph, so the committed artifact's embedded graph
+counts described a graph no longer present and the identity gate refused to authorise any
+load against them. Re-anchoring the records without re-running Stage 3 would have left the
+dataset's `joern` rows derived from bytes nothing on this host holds, so the runner was
+invoked again — directly, with no arguments, restored to its provisioned bytes — against
+the graph now at the sanctioned path (`runner-metadata.json`
+`tools.joern.stage3_invocation_2026_09_03`, field `why_it_was_re-run`). The query set, its
+bound, the artifact path and the envelope shape are identical across the two invocations,
+so the difference between 690 findings and the superseded 693 is the graph and not the
+runner. `run-record.md` **D25** records the reverted runner edit as a disclosed
+divergence.
 
 **No raise was required and none was made**: the provisioned default at
-`harness/env.sh` line 85 is already 64 GB, which meets the mandated minimum. The
+`harness/env.sh` line 85 is already 64 GB, which meets the mandated minimum, and the
+`JAVA_TOOL_OPTIONS=-Xmx64g` this run exported carries that same 64 GB to the child rather
+than a different value. The
 precedent's 48 GB `JAVA_OPTS` default — below that minimum — was **not in effect**
 here, on two grounds: `JAVA_OPTS` was unset in the sourced environment, and this
 runner reads `HARNESS_JOERN_HEAP` rather than `JAVA_OPTS`, so the precedent
@@ -1632,44 +1745,68 @@ Commit was proven rather than assumed —
 `java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version` exits 0, and pre-touching
 every page is strictly stronger than reserving it.
 
-**Graph identity, measured either side of the load and identical.** The named path
-`harness/cpg/spark.cpg` is a 33-byte symlink resolving to the regular file
-`/opt/blitzy-harness/cpg/spark.cpg`; both AAP 0.6.4 names are the same file. Byte
-size **541,309,809** and sha256
-`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` were measured
-at **2026-09-01T14:25:10Z**, when this invocation began, and again at
-**14:41:24Z**, when it returned, and the two measurements are identical
-(`runner-sequence.json`, at its invocation whose `invocation_index` is **9** — this
-tool, last of the nine — fields `graph_identity_before_load` and
-`graph_identity_after_load`; the link-only 33-byte measurement is recorded only to
-discard it in favour of the symlink-following size). The runner prints the same
-three facts into its own stream before invoking — `cpg`, `cpg bytes` and
-`cpg sha256` at `harness/bin/run-joern.sh` lines 111–113 (lines 56–58 in the runner of
-record), which the runner is present in this checkout to show, landing at
-`harness/artifacts/logs/joern.runner-console.log` lines 13–15 as `541309809` and
-`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`. The dedicated
-pre-load gate `harness/lib/preflight_graph_identity.py`, whose output is retained
-at `harness/artifacts/logs/joern-preflight.log`, compares those same bytes against
-the graph's record of account at
-`/opt/blitzy-harness/provision-log/cpg-identity.txt` and returns **VERDICT: PASS**
-with both size and sha256 marked `MATCH`; that gate ran at 14:52:54Z, after this
-invocation rather than before it, and is cited for what it establishes — that the
-bytes read and the record of account agree — rather than as the thing that gated
-this particular load. **The ordering was the defect, and it is fixed**: since
-2026-09-02 the runner runs that gate itself, `--check-only`, at its line 139 —
-structurally upstream of every `joern` invocation — teeing the report to its console and
-to `$HARNESS_LOG_DIR/joern.preload-identity.log`, and `scope_fail`s with exit **78** at
-its lines 142–144 on a non-zero gate status, before it touches its artifact. Proven by a
-negative test: with `HARNESS_CPG` pointed at bytes of a different identity the gate
-exited 77, the runner exited 78, `VERDICT: HALT` was printed, and no `importCpg` and no
-artifact write occurred. Until then the gate was bound only by
-`harness/lib/run-joern-gated.sh`, which this load did not take (`run-record.md` **D4**,
-and **D25** for the runner edit). The load used `importCpg`, three occurrences of it against
-**zero occurrences of `importCode`** in the query script, and reported
-`methods=1396899 typeDecls=119721 files=45037` — more than zero methods. The graph
-was **not** written by this run: the frontend in this clone reached the flatgraph
-serialization ceiling, so the persisted graph is provisioning's, dated
-2026-08-30, and this invocation read it without rebuilding it.
+**Graph identity, verified immediately before the load and again by the runner's own
+print.** The named path `harness/cpg/spark.cpg` is a 33-byte symlink resolving to the
+regular file `/opt/blitzy-harness/cpg/spark.cpg`; both AAP 0.6.4 names are the same file.
+Byte size **547,980,224** and sha256
+`325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6` are the graph this
+invocation read. They were checked against the graph's record of account **before** the
+load, at **2026-09-03T09:07:46Z**, one second ahead of the 09:07:47Z invocation, by
+`harness/lib/preflight_graph_identity.py`, whose full report is retained at
+`harness/artifacts/logs/joern-preflight.log`, which states the recorded size and the
+recorded sha256 at its lines 47–48, marks both `MATCH` against the resolved file at its
+lines 56–57, prints `All 1 subject(s) resolve to one file: yes` at line 60, names its
+record of account and the two records corroborating it at lines 38–40, and closes with
+**VERDICT: PASS** at line 96. The record of account is
+`/opt/blitzy-harness/provision-log/cpg-identity.txt`, corroborated by
+`/opt/blitzy-harness/provision-log/cpg-record.txt` and by `harness/ENVIRONMENT.md`, all
+three agreeing. The same gate adjudicated the graph's **method count** against
+AAP 0.9.2's floor in the same report — `1,398,964 >= 853,420`, `FLOOR SATISFIED`, agreed
+by two records of account, at its lines 62–93 — because identity and completeness are
+different facts: a truncated graph persisted once has a consistent identity in every
+record that describes it. The runner prints the same three facts into its own stream
+before invoking — `cpg`, `cpg bytes` and `cpg sha256` at `harness/bin/run-joern.sh` lines
+56–58, which the runner is present in this checkout to show — and prints them without
+comparing them to anything, which is why the comparison above is the gate's and not the
+runner's. The link-only 33-byte measurement is recorded only to discard it in favour of
+the symlink-following size. The load used `importCpg`, three occurrences of it in
+`harness/lib/joern-scan.sc` against **zero occurrences of `importCode`** in that script,
+and reported `methods=1398964 typeDecls=119860 files=45037` — more than zero methods —
+which `harness/artifacts/logs/joern.stdout.log` line 127 carries verbatim and
+`harness/artifacts/logs/cpg-verify.log` PART 3 corroborates from three independent
+`importCpg` loads of the same bytes that agree on all three counts. The graph was **not**
+written by this run: the frontend in this clone reached the flatgraph serialization
+ceiling, so the persisted graph is provisioning's, rebuilt at the 2026-09-03T01:17:07Z
+re-provisioning, and this invocation read it without rebuilding it.
+
+**The superseded generation's identity, retained.** The 2026-09-01 invocation read a
+different graph — byte size **541,309,809**, sha256
+`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`, reporting
+`methods=1396899 typeDecls=119721 files=45037` — measured at 2026-09-01T14:25:10Z and
+again at 14:41:24Z and identical across that load
+(`runner-sequence.json`, at its `invocations[]` entry for this tool, fields
+`graph_identity_before_load` and `graph_identity_after_load`, whose own
+`superseded_on_2026_09_03` node states why it is no longer the invocation of record).
+Those bytes are not on this host: the re-provisioning replaced them. That generation's
+console is still on disk and is left verbatim —
+`harness/artifacts/logs/joern.runner-console.log` lines 14–15 read `541309809` and
+`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`, and that file is a
+capture of the superseded lane rather than of this one. Both identities stay on the
+record with their provenance and neither is reconciled into the other.
+
+**On the ordering, which was the original defect.** The 2026-09-01 load ran the identity
+gate **after** it rather than before, at 14:52:54Z, so that load was not in fact gated on
+the comparison. Two things closed that, and only one of them survives. A 2026-09-02 edit
+put the gate inside the runner; that edit was reverted on 2026-09-03 as a prohibited
+runner edit, so the runner once again prints its input's identity without comparing it,
+which `harness/artifacts/logs/joern-preflight.log` states in its own words at its lines
+22–26 and 33–35. What binds the load now is external and it ran: the gate was executed to
+a PASS verdict at 09:07:46Z, one second before the 09:07:47Z invocation, and
+`harness/lib/run-joern-gated.sh` carries no branch reaching the runner after a non-zero
+gate status. The gate's refusal was proven by a negative test: with `HARNESS_CPG` pointed
+at bytes of a different identity it exited 77 and printed `VERDICT: HALT`, and no
+`importCpg` and no artifact write occurred (`run-record.md` **D4**, and **D25** for the
+reverted runner edit).
 
 **What that provenance means for what this tool actually scanned, cited rather
 than re-derived.** Those bytes were written by provisioning over a **62-archive**
@@ -1692,28 +1829,33 @@ did produce their own main artifact, which is again `build-record.md`'s verdict 
 and it is published as a divergence rather than repaired by trimming the input set
 or weakening the witness test.
 
-**One disagreement about that identity, recorded rather than smoothed over — and since
-corrected at the record.** The environment record — `harness/ENVIRONMENT.md`, lines
-284–287, restated in its own inlined-values block at lines 841–846 — **stated** a
-different graph:
-**541,255,894** bytes, sha256
-`26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`, with
-1,397,339 methods and 119,691 type declarations, against the
-541,309,809 / `4616845a…` / 1,396,899 / 119,721 measured on disk and read by this
-load. The gate recorded that as one of its **two halts**,
+**One disagreement about that identity, recorded rather than smoothed over — corrected
+once, withdrawn, and re-anchored to the graph now on disk.** The environment record
+`harness/ENVIRONMENT.md` originally **stated** a graph of **541,255,894** bytes, sha256
+`26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`, with 1,397,339
+methods, against the 541,309,809 / `4616845a…4730c7` / 1,396,899 / 119,721 the
+2026-09-01 load measured on disk. The gate recorded that as one of its **two halts**,
 `gate.environment_record_graph_identity_agreement`, rather than as a tolerated
-difference: it is an observable fact contradicting the record on an inherited
-field. **Corrected 2026-09-02, at the record and not at the graph**: the disagreement was
-the record being stale — the host was re-provisioned on 2026-08-30 — and the graph's own
-write-time record of account, `/opt/blitzy-harness/provision-log/cpg-record.txt`, carries
-an "Expected vs observed (prior provisioning record)" block that names both pairs and
-states which describes the bytes. Those lines were re-anchored to that owner and now state
-541,309,809 / `4616845a…4730c7` / 1,396,899 / 119,721 — the pair this load read — with
-both values retained in that document's supersession appendix. **The graph was not
-touched**, so this entry's identity measurements and every figure resting on them are
-unchanged. Both values still stand with their provenance, neither is reconciled into
-the other, and the wider account of the divergence belongs to
-`oss-scan-results/run-record.md` (**D4**, with **D25** for the record edit itself).
+difference: it is an observable fact contradicting the record on an inherited field the
+expected-values table does not anchor. That check's own `observed` field is left exactly
+as measured and its history has two steps. A 2026-09-02 correction re-anchored the
+record's graph block to the graph's write-time record of account and published the
+condition as resolved. That correction was **withdrawn on 2026-09-03**, because the
+2026-09-03T01:17:07Z re-provisioning rebuilt the graph out from under it and the pair it
+had anchored to is no longer the pair on disk. The record was then re-anchored the same
+day to the graph that is there — **547,980,224** / `325887cf…3dc6` / 1,398,964 methods /
+119,860 type declarations / 45,037 files, which `harness/ENVIRONMENT.md` section 7 now
+carries and its supersession appendix retains the two superseded pairs behind — and the
+re-anchoring holds, evidenced by an identity gate that exits 0 with **VERDICT: PASS** at
+`harness/artifacts/logs/joern-preflight.log` line 96. Both steps and both superseded
+pairs are recorded in `gate-record.json`, in that check and in `gate_verdict.state_now`,
+which also states that the gate's **other** halt, `gate.artifact_trees_exist_and_empty`,
+is still live and repairable only by provisioning. **The graph was replaced by
+provisioning and not by this run**, and this run's response was to re-execute Stage 3
+against the bytes actually there rather than to leave this entry describing bytes nobody
+holds. Every value stands with its provenance, none is reconciled into another, and the
+wider account of the divergence belongs to `oss-scan-results/run-record.md` (**D4**, with
+**D25** for the reverted runner edit).
 
 **Rejections, all 586 under `unresolvable_path`.** Each rejected record is a
 bytecode class with no source coordinate in the pinned tree — third-party classes
@@ -1725,11 +1867,35 @@ for the class or declares that type, so the class has no source coordinate. A
 record whose path cannot be resolved is rejected and counted rather than guessed
 into a field, and `path` is not an optional field.
 
-**Reduced-reach conditions.** This tool reported none. Its stderr, 699 bytes,
-carries the script-execution trace only — the project creation, the working copy,
-the base-CPG load and the closing save. Its own statement about the work it did is
-the per-query output in
+**Reduced-reach conditions.** This tool reported none. Its stderr, 768 bytes over ten
+lines, carries the script-execution trace only — two `Picked up JAVA_TOOL_OPTIONS: -Xmx64g`
+notices, one per JVM, then the script's own path, the project creation, the working copy,
+the base-CPG load, the two graph-modified notices and the closing save. Its own statement
+about the work it did is the per-query output in
 `harness/artifacts/logs/joern.stdout.log`:
+
+```
+graph loaded: methods=1398964 typeDecls=119860 files=45037
+query joern-process-exec               returned     55 bound_reached=false elapsed_ms=831
+query joern-unsafe-deserialization     returned    178 bound_reached=false elapsed_ms=14
+query joern-reflection-forname         returned    411 bound_reached=false elapsed_ms=10
+query joern-message-digest             returned     23 bound_reached=false elapsed_ms=1
+query joern-cipher-getinstance         returned     10 bound_reached=false elapsed_ms=0
+query joern-xml-factory                returned     13 bound_reached=false elapsed_ms=1
+wrote 690 findings to <checkout>/harness/artifacts/raw/joern.json
+```
+
+That block is `harness/artifacts/logs/joern.stdout.log` lines 127–134, quoted with
+the absolute checkout prefix on the last line abbreviated and nothing else
+altered.
+
+**The superseded generation's console block, quoted as it was written and not corrected
+inside the quotation.** An earlier generation of this entry published the block below and
+attributed it to the same line range of the same file. That file no longer holds this
+text — the 2026-09-03 re-invocation rewrote its own stream, and the eight lines above are
+what those line numbers now carry — so the block is reproduced here as a record of what
+the superseded 2026-09-01 invocation printed, with its numbers left exactly as that run
+emitted them:
 
 ```
 graph loaded: methods=1396899 typeDecls=119721 files=45037
@@ -1742,9 +1908,13 @@ query joern-xml-factory                returned     13 bound_reached=false elaps
 wrote 693 findings to <checkout>/harness/artifacts/raw/joern.json
 ```
 
-That block is `harness/artifacts/logs/joern.stdout.log` lines 127–134, quoted with
-the absolute checkout prefix on the last line abbreviated and nothing else
-altered.
+Not one figure inside that quotation was altered, because altering a quotation stops it
+being one. The current figures live in the block above it and in this entry's own fields,
+each measured from `harness/artifacts/logs/joern.stdout.log`,
+`harness/artifacts/logs/joern.status` and
+`harness/artifacts/logs/runner-metadata.json`; the superseded generation's own console
+capture at `harness/artifacts/logs/joern.runner-console.log` is likewise left verbatim and
+describes that lane and no other.
 
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
 and parses.
@@ -1765,7 +1935,7 @@ under `queries/joern/results/`.
 `/usr/bin/python3 <checkout>/harness/lib/normalize/cli.py`, run from the checkout
 root, interpreter `/usr/bin/python3` reporting **3.13.7** against an expected
 3.13.7 — matches; CPython, `3.13.7 (main, Mar  3 2026, 12:19:54) [GCC 15.2.0]`.
-It ran from **2026-09-02T22:56:48Z to 22:56:54Z** and exited **0**, outcome
+It ran from **2026-09-03T09:45:11Z to 09:45:16Z** and exited **0**, outcome
 `completed`, with `reconciliation.passed` true, no failures and no halt. It uses
 the standard library only, so it introduces no manifest, no lockfile and no
 install step. Stages A and B are established **before** either output file is
@@ -1908,7 +2078,8 @@ pass.
 real documents.** A synthetic fragment proves a form somebody typed is read; it does not
 prove the form is read *as these documents write it*, and that gap has now bitten twice
 — first a fixed look-ahead window, then an over-broad filename rule under which the
-abbreviated digest `4616845a…` counted as a filename and shadowed the log its own
+abbreviated digest `4616845a…` — the superseded generation's graph digest — counted as a
+filename and shadowed the log its own
 sentence is about, so the log's locators went unchecked and the mutation passed. The
 second phase therefore walks every result document, changes one locator of every form
 present to a line that does not exist, and requires a refusal naming a real file:
@@ -2110,17 +2281,21 @@ of what could not be established.
 - It records **inherited** facts as the run found them and applies the authority
   rule only to those: the expected-values table governs every field it carries and
   the environment record never overrides it. Four consequences are visible above.
-  **Where the table, the record and observation all differ, all three are
+  **Where the table, the record and observation all differ, every value is
   recorded** and none is reconciled into another — `datadog-static-analyzer`'s
-  ruleset digest is that case at three values, and `trivy`'s two database
-  timestamps and `dependency-check`'s feed timestamp are the same case at three
-  values each. **Where a difference changes what a count means, the tool is marked
+  ruleset digest is that case at **four** values, the fourth being the identity the
+  2026-09-03 re-provisioning left at the shared path and that no invocation in this run
+  read, and `trivy`'s two database timestamps and `dependency-check`'s feed timestamp
+  are the same case at four values each for the same reason. **Where a difference
+  changes what a count means, the tool is marked
   not comparable with the rehearsal** — those same three tools, each marked in its
   entry and in `oss-scan-results/severity-map.md`, and each recorded by the gate
   as a `recorded_difference` rather than a halt. **Where an observable fact
   contradicts the record on an inherited field the table does not carry, the
   contradiction is a halt and is reported as one** — the graph identity, one of
-  the gate's two halts, stated in the `joern` entry with both values. And **where
+  the gate's two halts, stated in the `joern` entry with every value it has taken,
+  including the correction that was made, withdrawn when the re-provisioning rebuilt the
+  graph, and re-anchored the same day to the bytes now on disk. And **where
   a difference is an output this run deliberately produced** rather than an
   inherited fact contradicted, both values stand with their provenance and nothing
   halts: every artifact byte count and digest in this document is this run's own

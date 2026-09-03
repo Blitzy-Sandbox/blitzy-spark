@@ -320,6 +320,45 @@ positive fixture and each exists for a reason a captured artifact could not serv
 | `fixtures/unknown-shape.json` | A document matching neither SARIF nor any known native shape | The halt path for an unrecognised artifact has no captured instance by construction — every artifact this run produced matched a known shape |
 | `fixtures/reconcile-mixed.json` | The at-least-one-rejection document the identity is asserted over | An identity asserted over a document with zero rejections is satisfied by an implementation that drops rejections entirely, so the fixture is authored to keep the identity non-degenerate |
 
+### 3.4 The Joern artifact has two envelope shapes, and the fixtures carry one each
+
+`adapters/joern.py` accepts **two** envelope shapes and its module docstring names both —
+the shape at `adapters/joern.py:28` and the shape at `adapters/joern.py:35`. They are not
+alternatives the adapter guesses between: each is what a different edition of
+`harness/lib/joern-scan.sc` emitted, and both normalise to the **same** counter names, so
+nothing downstream can tell which shape a document arrived in:
+
+| Shape | Envelope members | Where the counts live | Normalised to |
+| --- | --- | --- | --- |
+| **Current** — what the provisioned collector emits | `tool`, `tool_version`, `cpg`, `graph`, `query_set` | nested: `graph.methods`, `graph.type_declarations`, `graph.files` | `_ENVELOPE_GRAPH_KEY` at `adapters/joern.py:512` with the member map below it, e.g. `type_declarations` → `envelope_graph_type_declarations` at `:515` |
+| **Earlier** — what the superseded 211-line collector emitted | `tool`, `cpg_path`, `generated_at`, `cpg_methods`, `cpg_typedecls`, `source_index_size`, `declaration_index_size` | flat: `cpg_methods`, `cpg_typedecls` | `COUNTER_KEYS` at `adapters/joern.py:505-506`, mapping `cpg_methods` → `envelope_graph_methods` and `cpg_typedecls` → `envelope_graph_type_declarations` |
+
+**Which fixture is which, and why the split is deliberate.** `fixtures/joern.json` carries the
+**current** shape, because it is a capture of `harness/artifacts/raw/joern.json` as that
+artifact stands — its envelope reads `graph` `{methods 1398964, type_declarations 119860,
+files 45037}`. All **13** `fixtures/reject-joern-*.json` carry the **earlier** shape, because
+each was derived from the Joern artifact as captured at provisioning, whose envelope reads
+`generated_at 2026-08-24T22:58:56Z`, `cpg_methods 1397339`, `cpg_typedecls 119691`.
+
+Those two figures are **frozen capture provenance and not a claim about any graph**. The
+graph they describe was replaced on 2026-09-03 — `harness/cpg/spark.cpg` is now 547,980,224
+bytes, sha256 `325887cf…3dc6`, with 1,398,964 methods and 119,860 type declarations. The
+expected files name the values as belonging to the fixture rather than to the world, under
+`envelope_fields.observed` and `envelope_survives_the_rejection.expected_values_from_the_fixture`,
+and `test_joern_adapter.py` asserts the pass-through against the fixture it was taken from
+(`envelope_graph_methods == 1397339`) rather than against anything live.
+
+**The 13 were not re-derived onto the current shape, for three reasons.** They are genuine
+captures, and authoring replacement envelope data for them would be fabricating fixture
+input, which §3.2 rules out and AAP §0.6.2 forbids by requiring capture. Re-deriving them
+would leave **no** fixture exercising the flat-envelope branch, so a real regression in
+`COUNTER_KEYS` would stop being caught. And the envelope is orthogonal to every condition
+these fixtures exist to drive: each one is a rejection in `findings[]`, and
+`_record_envelope` (`adapters/joern.py:1708`) contributes counters only — **no envelope
+member produces a row and none enters the reconciliation record count**, which the module
+states at `adapters/joern.py:501`. Keeping the split therefore covers both branches with
+captured data and costs nothing; collapsing it would cover one branch with authored data.
+
 ## 4. Rejection-condition matrix
 
 AAP §0.5.4 enumerates **nine** rejection conditions and `normalize.paths.REJECT_CLASSES`

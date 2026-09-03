@@ -896,5 +896,53 @@ VERDICT
   neither admissible witness over the full project-output set.
 
 ================================================================================
+SUPERSESSION APPENDED 2026-09-03 - the graph this file measures is no longer the
+graph on disk
+================================================================================
+
+  Nothing above this line is edited. This file is the record of the pass that
+  wrote it, and it is preserved as that pass observed things.
+
+  WHAT THIS FILE QUOTES, AND WHEN IT WAS TRUE
+    bytes 541,309,809 / sha256 4616845a...4730c7, methods 1,396,899, type
+    declarations 119,721, files 45,037, and 102 META-INF/maven/**/pom.properties file
+    nodes - the graph in use when this pass measured, 2026-09-01.
+
+  WHAT IS ON DISK NOW
+    bytes     : 547,980,224
+    sha256    : 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+    methods   : 1,398,964   type declarations : 119,860   files : 45,037
+
+    The graph at harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg was
+    rebuilt on 2026-09-03 by jimple2cpg (joern 4.0.607) over
+    /opt/blitzy-harness/cpg-input, 31 m 23 s, exit 0. Its write-time owners are
+    /opt/blitzy-harness/provision-log/cpg-identity.txt and
+    /opt/blitzy-harness/provision-log/cpg-record.txt, and the runner recomputed
+    the same pair at Stage 3 - see harness/artifacts/logs/joern.runner-console-2026-09-03.log
+    lines 28-29. The three importCpg loads that establish the counts above are
+    recorded in harness/artifacts/logs/cpg-verify.log PART 3, which also carries
+    the supersession statement naming the values this file quotes.
+
+  WHY THIS MATTERS FOR READING THE PAGES ABOVE
+    The block at lines 763-767 is headed "methods in the graph in use" and cites
+    harness/artifacts/logs/cpg-verify.log PHASE 1 for each figure. PHASE 1 of that
+    file was re-anchored on 2026-09-03 to the load of the graph now on disk, so it
+    now reads 1,398,964 / 119,860 / 45,037. The figures quoted here survive in that
+    same file's PART 3 supersession statement rather than in PHASE 1, and "in use"
+    must be read as of 2026-09-01. The witness verdict this file reports - 26 of 31
+    modules covered on injective evidence, 5 with no verdict - was re-measured on
+    2026-09-03 against the live graph and is unchanged, including the mechanical
+    confirmation that the five no-witness modules have exclusive_class_count exactly
+    0; harness/artifacts/logs/cpg-module-coverage.json is the live owner.
+
+  WHAT WAS NOT DONE, AND WHY
+    No figure above is rewritten and no line is renumbered. Every line number a
+    citation of this file may carry still addresses the same text. The values above
+    are this file's own first-hand measurements; replacing them would destroy the
+    evidence that the identity ever changed, which is the one thing a supersession
+    record exists to preserve (AAP 0.1.3: both the inherited and the newly measured
+    value are recorded with their provenance).
+
+================================================================================
 END - reverification-f4-module-witness-full-input-set.log
 ================================================================================

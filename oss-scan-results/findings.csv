@@ -9330,106 +9330,103 @@ checkov,misconfig,CKV_DOCKER_2,Ensure that HEALTHCHECK instructions have been ad
 trivy,misconfig,DS-0026,No HEALTHCHECK defined,LOW,Low,resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile,,,,,true
 trivy,misconfig,DS-0026,No HEALTHCHECK defined,LOW,Low,resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile,,,,,true
 trivy,misconfig,DS-0026,No HEALTHCHECK defined,LOW,Low,resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile,,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,845,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,666,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,878,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,666,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,845,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/core/src/main/scala/org/apache/spark/sql/execution/BaseScriptTransformationExec.scala,88,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,common/utils-java/src/main/java/org/apache/spark/network/util/JavaUtils.java,336,,,,false
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,common/utils-java/src/main/java/org/apache/spark/network/util/JavaUtils.java,336,,,,false
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/util/Utils.scala,1200,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/util/Utils.scala,2117,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/PythonRunner.scala,121,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/RRunner.scala,101,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala,276,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/worker/ExecutorRunner.scala,183,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/RPackageUtils.scala,128,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/python/PythonWorkerFactory.scala,247,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/python/PythonWorkerFactory.scala,324,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/r/RUtils.scala,104,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/r/BaseRRunner.scala,315,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/rdd/PipedRDD.scala,115,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,878,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,666,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,845,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,878,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,666,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,845,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,launcher/src/main/java/org/apache/spark/launcher/SparkLauncher.java,356,,,,false
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,launcher/src/main/java/org/apache/spark/launcher/SparkLauncher.java,431,,,,false
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,common/utils-java/src/main/java/org/apache/spark/network/util/JavaUtils.java,336,,,,false
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,878,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,666,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,845,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/core/src/main/scala/org/apache/spark/sql/execution/BaseScriptTransformationExec.scala,88,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/rdd/PipedRDD.scala,115,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/worker/ExecutorRunner.scala,183,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala,276,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/RRunner.scala,101,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/RPackageUtils.scala,128,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/PythonRunner.scala,121,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/python/PythonWorkerFactory.scala,247,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/python/PythonWorkerFactory.scala,324,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/r/BaseRRunner.scala,315,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/r/RUtils.scala,104,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/util/Utils.scala,1200,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/util/Utils.scala,2117,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,845,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,666,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,878,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/core/src/main/scala/org/apache/spark/sql/execution/BaseScriptTransformationExec.scala,88,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,845,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,666,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,878,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,common/utils-java/src/main/java/org/apache/spark/network/util/JavaUtils.java,336,,,,false
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,845,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,666,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/SparkSession.scala,878,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/rdd/PipedRDD.scala,115,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/worker/ExecutorRunner.scala,183,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala,276,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/RRunner.scala,101,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/RPackageUtils.scala,128,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/PythonRunner.scala,121,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/RRunner.scala,101,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala,276,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/worker/ExecutorRunner.scala,183,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/deploy/RPackageUtils.scala,128,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/python/PythonWorkerFactory.scala,247,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/python/PythonWorkerFactory.scala,324,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/r/BaseRRunner.scala,315,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/r/RUtils.scala,104,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/util/Utils.scala,1200,,,,true
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/util/Utils.scala,2117,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/api/r/BaseRRunner.scala,315,,,,true
+joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,core/src/main/scala/org/apache/spark/rdd/PipedRDD.scala,115,,,,true
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,launcher/src/main/java/org/apache/spark/launcher/SparkLauncher.java,356,,,,false
 joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,launcher/src/main/java/org/apache/spark/launcher/SparkLauncher.java,431,,,,false
-joern,sast,joern-process-exec,external process launch reachable in bytecode,HIGH,High,common/utils-java/src/main/java/org/apache/spark/network/util/JavaUtils.java,336,,,,false
-joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,35,,,,false
-joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,50,,,,false
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/common/UdfPacket.scala,61,,,,true
+joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,88,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/Partitioner.scala,314,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/Partitioner.scala,315,,,,true
-joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,88,,,,true
-joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/MapOutputTracker.scala,1622,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/TaskEndReason.scala,202,,,,true
+joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/MapOutputTracker.scala,1622,,,,true
+joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/common/UdfPacket.scala,61,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/common/UdfPacket.scala,61,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/common/UdfPacket.scala,61,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,35,,,,false
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,50,,,,false
-joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,sql/connect/common/src/main/scala/org/apache/spark/sql/connect/common/UdfPacket.scala,61,,,,true
+joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,35,,,,false
+joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,50,,,,false
+joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,88,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/Partitioner.scala,314,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/Partitioner.scala,315,,,,true
-joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,88,,,,true
-joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/MapOutputTracker.scala,1622,,,,true
 joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/TaskEndReason.scala,202,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkClassUtils.scala,42,,,,false
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkClassUtils.scala,44,,,,false
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/ClosureCleaner.scala,227,,,,false
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,46,,,,false
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/ClosureCleaner.scala,785,,,,false
+joern,sast,joern-unsafe-deserialization,java deserialization entry point (ObjectInputStream.readObject),HIGH,High,core/src/main/scala/org/apache/spark/MapOutputTracker.scala,1622,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,streaming/src/main/scala/org/apache/spark/streaming/Checkpoint.scala,403,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/network-yarn/src/main/java/org/apache/spark/network/yarn/YarnShuffleService.java,359,,,,true
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java,63,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java,80,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java,321,,,,false
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,streaming/src/main/scala/org/apache/spark/streaming/Checkpoint.scala,403,,,,false
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/util/SizeEstimator.scala,145,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/util/SizeEstimator.scala,147,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,72,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,81,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/SerializationDebugger.scala,429,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/deploy/worker/WorkerArguments.scala,153,,,,true
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java,63,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java,80,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/unsafe/src/main/java/org/apache/spark/unsafe/Platform.java,321,,,,false
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,streaming/src/main/scala/org/apache/spark/streaming/Checkpoint.scala,403,,,,false
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/SerializationDebugger.scala,429,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,72,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,81,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/deploy/worker/WorkerArguments.scala,153,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/util/SizeEstimator.scala,145,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/util/SizeEstimator.scala,147,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,sql/hive-thriftserver/src/main/java/org/apache/hive/service/cli/HiveSQLException.java,243,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,sql/hive-thriftserver/src/main/java/org/apache/hive/service/cli/HiveSQLException.java,243,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,streaming/src/main/scala/org/apache/spark/streaming/Checkpoint.scala,403,,,,false
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/network-yarn/src/main/java/org/apache/spark/network/yarn/YarnShuffleService.java,359,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,46,,,,false
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/ClosureCleaner.scala,785,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkClassUtils.scala,42,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkClassUtils.scala,44,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/ClosureCleaner.scala,227,,,,false
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,sql/hive-thriftserver/src/main/java/org/apache/hive/service/cli/HiveSQLException.java,243,,,,true
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkSerDeUtils.scala,46,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/ClosureCleaner.scala,785,,,,false
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/SerializationDebugger.scala,429,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,72,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/JavaSerializer.scala,81,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/deploy/worker/WorkerArguments.scala,153,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkClassUtils.scala,42,,,,false
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/SparkClassUtils.scala,44,,,,false
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/utils/src/main/scala/org/apache/spark/util/ClosureCleaner.scala,227,,,,false
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/util/SizeEstimator.scala,145,,,,true
 joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/util/SizeEstimator.scala,147,,,,true
-joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,common/network-yarn/src/main/java/org/apache/spark/network/yarn/YarnShuffleService.java,359,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/serializer/SerializationDebugger.scala,429,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,core/src/main/scala/org/apache/spark/deploy/worker/WorkerArguments.scala,153,,,,true
+joern,sast,joern-reflection-forname,reflective class loading (Class.forName),MEDIUM,Medium,sql/hive-thriftserver/src/main/java/org/apache/hive/service/cli/HiveSQLException.java,243,,,,true
 joern,sast,joern-message-digest,message digest construction (algorithm chosen at this call site),MEDIUM,Medium,sql/hive-thriftserver/src/main/java/org/apache/hive/service/CookieSigner.java,93,,,,true
 joern,sast,joern-message-digest,message digest construction (algorithm chosen at this call site),MEDIUM,Medium,sql/hive-thriftserver/src/main/java/org/apache/hive/service/CookieSigner.java,93,,,,true
-joern,sast,joern-cipher-getinstance,cipher construction (transformation chosen at this call site),MEDIUM,Medium,sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/ExpressionImplUtils.java,223,,,,true
 joern,sast,joern-cipher-getinstance,cipher construction (transformation chosen at this call site),MEDIUM,Medium,sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/ExpressionImplUtils.java,223,,,,true
 joern,sast,joern-xml-factory,XML parser factory construction (external entity posture set at this call site),MEDIUM,Medium,sql/catalyst/src/main/java/org/apache/spark/sql/catalyst/expressions/xml/UDFXPathUtil.java,48,,,,true
 joern,sast,joern-xml-factory,XML parser factory construction (external entity posture set at this call site),MEDIUM,Medium,sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/xml/XmlOptions.scala,180,,,,true
